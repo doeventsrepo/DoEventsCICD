@@ -9,3 +9,6 @@ lovable-change-manifest.json
 __pycache__/
 *.pyc
 .venv/
+simulation/sandbox/
+simulation/workspaces/
+simulation/output/

@@ -22,6 +22,21 @@ def git(args: list[str], cwd: Path) -> str:
     return subprocess.check_output(["git", *args], cwd=cwd, text=True, stderr=subprocess.DEVNULL).strip()
 
 
+def rev_exists(cwd: Path, rev: str) -> bool:
+    try:
+        git(["rev-parse", "--verify", f"{rev}^{{commit}}"], cwd)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+def resolve_before(cwd: Path, before: str) -> str:
+    if rev_exists(cwd, before):
+        return before
+    print(f"AVISO: revision {before} no existe en repo Lovable; usando raiz", file=sys.stderr)
+    return git(["rev-list", "--max-parents=0", "HEAD"], cwd)
+
+
 def last_synced_lovable_sha(web: Path) -> str | None:
     try:
         out = git(["log", "-1", "--grep=lovable(sync)", "--format=%s", "develop"], web)
@@ -50,12 +65,12 @@ def main() -> int:
 
     if before in ("__last_sync__", "workflow_dispatch") and web_dir and web_dir.exists():
         last_sha = last_synced_lovable_sha(web_dir)
-        if last_sha:
+        if last_sha and rev_exists(root, last_sha):
             before = last_sha
             print(f"Catch-up desde ultimo sync WEB: {last_sha}")
         else:
-            before = git(["rev-list", "--max-parents=0", "HEAD"], root)
-            print(f"Sin sync previo; desde raiz: {before}")
+            before = resolve_before(root, before if before not in ("__last_sync__", "workflow_dispatch") else "HEAD~1")
+            print(f"Sin sync previo valido; desde: {before}")
         mode = "catch-up"
 
     diff = git(["diff", "--name-status", before, after], root)

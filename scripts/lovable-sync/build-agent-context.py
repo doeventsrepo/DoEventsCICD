@@ -16,6 +16,23 @@ def git(args: list[str], cwd: Path) -> str:
     return subprocess.check_output(["git", *args], cwd=cwd, text=True, stderr=subprocess.DEVNULL)
 
 
+def rev_exists(cwd: Path, rev: str) -> bool:
+    try:
+        git(["rev-parse", "--verify", f"{rev}^{{commit}}"], cwd)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+def normalize_refs(lovable: Path, before: str, after: str, lovable_sha: str | None) -> tuple[str, str]:
+    if after in ("HEAD", "") and lovable_sha:
+        after = lovable_sha
+    if not rev_exists(lovable, after):
+        after = git(["rev-parse", "HEAD"], lovable)
+    before = before if rev_exists(lovable, before) else git(["rev-list", "--max-parents=0", "HEAD"], lovable)
+    return before, after
+
+
 def truncate(text: str, limit: int) -> str:
     if len(text) <= limit:
         return text
@@ -36,6 +53,7 @@ def main() -> int:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     before = manifest.get("before", "HEAD~1")
     after = manifest.get("after", manifest.get("lovableSha", "HEAD"))
+    before, after = normalize_refs(lovable, before, after, manifest.get("lovableSha"))
     changed = manifest.get("changedFiles", [])
 
     sections: list[str] = [

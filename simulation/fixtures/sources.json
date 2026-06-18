@@ -1,0 +1,56 @@
+{
+  "version": "1.0",
+  "description": "Fuentes Lovable para simulacion DoEventsCICD (sin tocar DoEventsWEB productivo)",
+  "webSandbox": "sandbox/DoEventsWEB",
+  "cicdRoot": "..",
+  "sources": [
+    {
+      "id": "discover-joyful-feed",
+      "label": "Repo diseño conectado a Lovable (produccion futura)",
+      "path": "../../discover-joyful-feed",
+      "expectGit": true,
+      "expectRules": true,
+      "priority": 1
+    },
+    {
+      "id": "lovable-v17",
+      "label": "Lovable version_17_06_2026/extracted",
+      "path": "../../Lovable/version_17_06_2026/extracted",
+      "expectGit": true,
+      "expectRules": true,
+      "priority": 2
+    },
+    {
+      "id": "lovable-v16",
+      "label": "Lovable version_16_06_2026/extracted",
+      "path": "../../Lovable/version_16_06_2026/extracted",
+      "expectGit": false,
+      "expectRules": false,
+      "priority": 3
+    },
+    {
+      "id": "lovable-v15",
+      "label": "Lovable version_15_06_2026/extracted",
+      "path": "../../Lovable/version_15_06_2026/extracted",
+      "expectGit": false,
+      "expectRules": false,
+      "priority": 4
+    },
+    {
+      "id": "lovable-v13",
+      "label": "Lovable version_13_06_2026/extracted",
+      "path": "../../Lovable/version_13_06_2026/extracted",
+      "expectGit": false,
+      "expectRules": false,
+      "priority": 5
+    },
+    {
+      "id": "lovable-root-extracted",
+      "label": "Lovable/extracted (raiz)",
+      "path": "../../Lovable/extracted",
+      "expectGit": false,
+      "expectRules": false,
+      "priority": 6
+    }
+  ]
+}

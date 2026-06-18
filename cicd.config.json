@@ -1,7 +1,7 @@
 {
-  "version": "1.0",
+  "version": "2.0",
   "project": "DoEvents",
-  "description": "Orquestacion CI/CD: Lovable → Cursor Agent → DoEventsWEB/Back → AWS QA",
+  "description": "Orquestacion CI/CD: Lovable → Cursor Agent (empalme) → DoEventsWEB/Back → AWS DEV (sa-east-1). QA solo manual.",
   "repositories": {
     "cicd": "doeventsrepo/DoEventsCICD",
     "design": "doeventsrepo/discover-joyful-feed",
@@ -11,10 +11,15 @@
   },
   "branches": {
     "design": "main",
-    "integration": "develop",
-    "production": "main",
+    "protected": ["main", "develop", "release", "release/*"],
+    "cicdWeb": "feature/cicd/dev-automation",
+    "cicdBack": "feature/cicd/dev-automation",
+    "cicdIa": "feature/cicd/dev-automation",
+    "cicdSelf": "main",
     "aiFeaturePrefix": "feature/ai/",
-    "lovableFeaturePrefix": "feature/lovable/"
+    "lovableFeaturePrefix": "feature/lovable/",
+    "agentOutputPrefix": "feature/lovable/adapt-",
+    "note": "Automatizacion SOLO en ramas feature/*. Prohibido push/checkout de develop, release o main en WEB/Back."
   },
   "paths": {
     "lovableRules": "reglasActuacion",
@@ -25,16 +30,33 @@
     "cicdScripts": "scripts/lovable-sync",
     "cicdPrompts": "prompts"
   },
-  "aws": {
+  "awsDev": {
+    "region": "sa-east-1",
+    "stage": "dev",
+    "web": {
+      "domain": "dev.doeventsapp.com",
+      "bucket": "doevents-web-dev",
+      "cloudFrontDistributionId": "E1AIDTCT83PAW5"
+    },
+    "api": {
+      "domain": "api-dev.doeventsapp.com"
+    },
+    "websocket": {
+      "domain": "ws-dev.doeventsapp.com"
+    },
+    "dynamoDbSuffix": "-dev",
+    "buildCommand": "npm run build:devaws",
+    "buildMode": "devaws"
+  },
+  "awsQa": {
+    "manualOnly": true,
     "region": "us-east-2",
     "web": {
       "domain": "qa.doeventsapp.com",
       "bucket": "doevents-web-qa",
       "cloudFrontDistributionId": "E3UV9NHXADGSAJ"
     },
-    "api": {
-      "domain": "api-qa.doeventsapp.com"
-    }
+    "note": "NO usar en pipelines automaticos. Solo workflow_dispatch con confirmacion explicita."
   },
   "agent": {
     "cursorApi": "https://api.cursor.com/v1/agents",
@@ -44,12 +66,21 @@
     "minReglasFrontBytes": 500,
     "autoCreatePr": false,
     "includeBackend": true,
-    "waitForCompletion": true
+    "waitForCompletion": true,
+    "strategy": "empalme",
+    "forbidLiteralCopy": true,
+    "forbidLovableMocks": true,
+    "requireBackendIntegration": true
   },
   "pipeline": {
-    "requireHumanApprovalForProd": true,
+    "targetEnvironment": "dev",
+    "targetRegion": "sa-east-1",
+    "autoDeployDevOnLovableSync": true,
     "autoDeployQaOnDevelopMerge": false,
+    "forbidAutomaticQaDeploy": true,
+    "requireHumanApprovalForProd": true,
     "validateMocks": true,
-    "validateSecrets": true
+    "validateSecrets": true,
+    "deployAfterAgentBranch": true
   }
 }

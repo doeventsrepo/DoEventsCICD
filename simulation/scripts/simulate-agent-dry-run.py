@@ -56,11 +56,13 @@ def main() -> int:
     payload_text_len = len(instructions) + len(reglas_doc) + len(rules_content) + len(context) + len(manifest_raw)
     checks.append({"check": "payload_size_chars", "ok": payload_text_len > 2000, "chars": payload_text_len})
 
+    web_ref = os.environ.get("WEB_STARTING_REF", "feature/cicd/dev-automation")
+    back_ref = os.environ.get("BACK_STARTING_REF", "feature/cicd/dev-automation")
     repos = [
-        {"url": "https://github.com/doeventsrepo/DoEventsWEB", "startingRef": "develop"},
+        {"url": "https://github.com/doeventsrepo/DoEventsWEB", "startingRef": web_ref},
     ]
     if os.environ.get("AGENT_INCLUDE_BACK", "true").lower() == "true":
-        repos.append({"url": "https://github.com/doeventsrepo/DoEventsBack", "startingRef": "develop"})
+        repos.append({"url": "https://github.com/doeventsrepo/DoEventsBack", "startingRef": back_ref})
 
     lovable_sha = manifest.get("lovableSha", "sim-unknown")
     payload = {

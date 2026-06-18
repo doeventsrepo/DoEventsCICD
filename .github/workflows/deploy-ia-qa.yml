@@ -1,24 +1,43 @@
-name: Deploy IA QA
+# Deploy IA QA — SOLO MANUAL
+name: Deploy IA QA (manual)
 
 on:
   workflow_dispatch:
-  workflow_call:
+    inputs:
+      confirm_manual_qa:
+        description: 'Escribe DEPLOY_QA_MANUAL para confirmar'
+        required: true
+        type: string
+      ia_ref:
+        description: Rama DoEventsIA
+        required: false
+        default: feature/cicd/dev-automation
 
 jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          if [ "${{ inputs.confirm_manual_qa }}" != "DEPLOY_QA_MANUAL" ]; then
+            echo "ERROR: QA manual only" >&2
+            exit 1
+          fi
+
   deploy-ia:
+    needs: guard
     runs-on: ubuntu-latest
     environment: qa
     steps:
       - uses: actions/checkout@v4
         with:
           repository: doeventsrepo/DoEventsIA
-          ref: develop
+          ref: ${{ inputs.ia_ref }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Deploy DoEventsIA
+      - name: Deploy DoEventsIA QA
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

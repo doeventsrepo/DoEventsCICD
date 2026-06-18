@@ -70,7 +70,7 @@ def append_decision_log(web: Path, entry: dict) -> None:
 - El agente debe usar `lovable-bridge/*` + `@doevents/shared`.
 
 ### 6. Resultado build/test
-- `npm run build:qa`: {entry.get('buildResult', 'pending')}
+- `npm run build:devaws`: {entry.get('buildResult', 'pending')}
 
 ### 7. Riesgos pendientes
 - Agente debe completar adaptacion y actualizar esta entrada.

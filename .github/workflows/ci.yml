@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 jobs:
   validate:
@@ -15,10 +15,30 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt
-      - run: python3 scripts/lovable-sync/validate-rules.py templates/ReglasAgente --strict || true
-      - name: Validar sintaxis workflows
+      - name: Validar cicd.config.json (DEV-only)
         run: |
-          for f in .github/workflows/*.yml; do
-            echo "OK: $f"
-          done
+          python3 -c "
+          import json
+          c=json.load(open('cicd.config.json'))
+          assert c['pipeline']['targetEnvironment']=='dev'
+          assert c['pipeline']['forbidAutomaticQaDeploy'] is True
+          assert c['pipeline']['autoDeployDevOnLovableSync'] is True
+          print('OK: pipeline DEV-only')
+          "
+      - run: python3 scripts/lovable-sync/validate-rules.py templates/ReglasAgente --strict || true
+      - name: Dry-run agente (sin API)
+        run: |
+          mkdir -p /tmp/web/ReglasAgente
+          cp templates/ReglasAgente/reglas-front.md /tmp/web/ReglasAgente/
+          export CICD_DIR=$PWD
+          export LOVABLE_DIR=$PWD/simulation/workspaces/lovable-root-extracted/lovable-run-1781776089 2>/dev/null || export LOVABLE_DIR=$PWD
+          export WEB_DIR=/tmp/web
+          python3 simulation/scripts/simulate-agent-dry-run.py || true
+      - name: Validar workflows presentes
+        run: |
+          test -f .github/workflows/lovable-sync-to-web.yml
+          test -f .github/workflows/deploy-web-dev.yml
+          ! grep -q 'deploy_qa_after' .github/workflows/lovable-sync-to-web.yml
+          ! grep -q 'uses:.*deploy-web-qa' .github/workflows/lovable-sync-to-web.yml
+          echo "OK: sin referencias QA en sync automatico"
       - run: test -f cicd.config.json && test -f prompts/REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md

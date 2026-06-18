@@ -55,6 +55,7 @@ def git_changed_files(lovable: Path, before: str, after: str) -> list[str]:
 
 
 def last_synced_lovable_sha(web: Path) -> str | None:
+    branch = os.environ.get("CICD_WEB_BRANCH", "feature/cicd/dev-automation")
     try:
         out = subprocess.check_output(
             [
@@ -63,7 +64,7 @@ def last_synced_lovable_sha(web: Path) -> str | None:
                 "-1",
                 "--grep=lovable(sync)",
                 "--format=%s",
-                "develop",
+                branch,
             ],
             cwd=web,
             text=True,

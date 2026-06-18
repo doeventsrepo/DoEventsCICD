@@ -14,7 +14,8 @@ policies:
     - validate_yaml_rules
     - open_pull_request
     - suggest_code_changes
-    - deploy_qa_with_approval
+    - deploy_dev_automatic
+    - deploy_qa_manual_only
 
 cursor:
   max_files_per_run: 40

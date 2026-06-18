@@ -1,8 +1,8 @@
 # DoEventsCICD — Documentación técnica
 
-Repositorio central de **orquestación CI/CD** para el ecosistema Do.Events: sincronización **Lovable → Cursor Agent → DoEventsWEB/Back → AWS QA**, con gobernanza por `reglasActuacion`, `ReglasAgente` y políticas del agente.
+Repositorio central de **orquestación CI/CD** para el ecosistema Do.Events: sincronización **Lovable → Cursor Agent (empalme) → DoEventsWEB/Back → AWS DEV (sa-east-1)**. QA solo manual.
 
-**Arquitectura de referencia:** `docs/ARQUITECTURA.md` (basada en `Automatizacion.html`)  
+**Runbook:** `docs/runbook-sync.md`  
 **Reglamento del agente:** `prompts/REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md`
 
 ---
@@ -31,10 +31,10 @@ Automatizar de forma **controlada** (human-in-the-loop):
 1. Detectar cambios de diseño en Lovable (`discover-joyful-feed`)
 2. Validar `reglasActuacion/` (YAML)
 3. Preparar artefactos en `DoEventsWEB/ReglasAgente/`
-4. Invocar **Cursor Cloud Agents API** para adaptar código (sin copia literal, sin mocks)
-5. Opcionalmente desplegar a **QA** en AWS
+4. Invocar **Cursor Cloud Agents API** para **empalmar** código (sin copia literal, sin mocks, backend real)
+5. Desplegar automaticamente a **DEV** (`dev.doeventsapp.com`, sa-east-1) desde ramas `feature/*`
 
-La IA **no** despliega a producción ni modifica secretos.
+La IA **no** despliega a QA ni produccion de forma automatica.
 
 ---
 
@@ -43,9 +43,9 @@ La IA **no** despliega a producción ni modifica secretos.
 | Repositorio | GitHub | Rama trabajo |
 |-------------|--------|--------------|
 | Diseño Lovable | [discover-joyful-feed](https://github.com/doeventsrepo/discover-joyful-feed) | `main` |
-| Frontend | [DoEventsWEB](https://github.com/doeventsrepo/DoEventsWEB) | `develop` |
-| Backend | [DoEventsBack](https://github.com/doeventsrepo/DoEventsBack) | `develop` |
-| IA runtime | [DoEventsIA](https://github.com/doeventsrepo/DoEventsIA) | `develop` |
+| Frontend | [DoEventsWEB](https://github.com/doeventsrepo/DoEventsWEB) | `feature/cicd/dev-automation` (+ `feature/lovable/adapt-*`) |
+| Backend | [DoEventsBack](https://github.com/doeventsrepo/DoEventsBack) | `feature/cicd/dev-automation` |
+| IA runtime | [DoEventsIA](https://github.com/doeventsrepo/DoEventsIA) | `feature/cicd/dev-automation` |
 | **CI/CD (este repo)** | `doeventsrepo/DoEventsCICD` | `main` |
 
 Configuración central: `cicd.config.json`

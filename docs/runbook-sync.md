@@ -1,52 +1,82 @@
-# Runbook — Sync Lovable → DoEventsWEB
+# Runbook — Sync Lovable → DoEventsWEB → DEV
+
+Pipeline **DEV-only** (sa-east-1). QA deshabilitado en automatizacion.
+
+## Arquitectura
+
+```text
+discover-joyful-feed (main)
+  → DoEventsCICD: Lovable Sync to WEB (DEV)
+    → prepare (validar reglas, manifiesto, ReglasAgente)
+    → adapt (Cursor Agent — empalme en feature/lovable/adapt-{sha})
+    → deploy-dev (S3 doevents-web-dev → dev.doeventsapp.com)
+```
+
+## Ramas
+
+| Repo | Rama automatizacion | Prohibidas |
+|------|---------------------|------------|
+| DoEventsWEB | `feature/cicd/dev-automation` (base) + `feature/lovable/adapt-*` (agente) | main, develop, release/* |
+| DoEventsBack | `feature/cicd/dev-automation` (solo fullstack) | main, develop, release/* |
+| DoEventsCICD | `main` (workflows) | — |
+| discover-joyful-feed | `main` (dispara sync) | — |
 
 ## Prerrequisitos
 
-1. Repos clonados: `discover-joyful-feed`, `DoEventsWEB`, `DoEventsCICD`
-2. `DoEventsWEB/ReglasAgente/reglas-front.md` ≥ 500 bytes (bootstrap: `scripts/bootstrap-web-reglas-agente.sh`)
-3. Secretos configurados (ver `docs/secrets.md`)
+1. Secretos en **DoEventsCICD** → environment `dev` (ver `infrastructure/dev-sa-east-1/GITHUB_SECRETS_DEV.md`)
+2. `DoEventsWEB/ReglasAgente/reglas-front.md` ≥ 500 bytes
+3. Ramas `feature/cicd/dev-automation` existentes en WEB y Back
 
-## Flujo manual (GitHub Actions)
+## Flujo automatico (GitHub Actions)
 
-1. Push cambios UI/reglas a `discover-joyful-feed` rama `main`
-2. En **DoEventsCICD** → Actions → **Lovable Sync to WEB** → Run workflow
+1. Push UI/reglas a `discover-joyful-feed` main (o workflow `Trigger DoEventsCICD Sync`)
+2. **DoEventsCICD** → Actions → **Lovable Sync to WEB (DEV)**
    - `run_agent`: true
-   - `agent_mode`: `frontend-only` (recomendado) o `fullstack`
-   - `lovable_ref`: SHA o `main`
-3. Job **prepare**: valida YAML, genera manifiesto, actualiza `ReglasAgente/` en WEB
-4. Job **adapt**: invoca Cursor Cloud Agent → rama `feature/lovable/adapt-{sha}`
-5. Revisar rama del agente en DoEventsWEB (+ DoEventsBack si fullstack)
-6. Merge manual a `develop` tras revisión
+   - `deploy_dev_after`: true (default)
+   - `web_cicd_branch`: `feature/cicd/dev-automation`
+3. **guard**: valida rama feature/*
+4. **prepare**: YAML, manifiesto, commit docs en rama feature
+5. **adapt**: Cursor Agent → `feature/lovable/adapt-{sha}` (empalme, anti-mocks, build:devaws)
+6. **deploy-dev**: S3 + CloudFront sa-east-1
 
-## Flujo automático (opcional)
+## Agente Cursor — empalme (NO copy-paste)
 
-Copiar `templates/workflows/trigger-cicd-sync.yml` a `discover-joyful-feed/.github/workflows/`.
+El agente debe:
 
-## Local (sin GHA)
+- Leer `ReglasAgente/reglas-front.md` y `REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md`
+- Integrar cambios en componentes existentes y `lovable-bridge/*`
+- Mantener `@doevents/shared` y APIs `api-dev.doeventsapp.com`
+- **No** usar mockData de Lovable en runtime
+- Documentar brechas backend en `impacto-backend.md`
+- Validar con `npm run build:devaws`
+
+## QA (solo manual)
+
+Workflows QA requieren escribir `DEPLOY_QA_MANUAL`:
+
+- `Deploy WEB QA (manual)`
+- `Deploy Backend QA (manual)`
+- `Deploy IA QA (manual)`
+
+No forman parte del pipeline Lovable.
+
+## Local (dry-run)
 
 ```bash
 cd DoEventsCICD
 pip install -r requirements.txt
-
-# Bootstrap WEB
-bash scripts/bootstrap-web-reglas-agente.sh ../DoEventsWEB
-
-# Analizar diff
-python3 scripts/lovable-sync/analyze-lovable-diff.py ../discover-joyful-feed __last_sync__ HEAD ../DoEventsWEB
-python3 scripts/lovable-sync/build-agent-context.py ../discover-joyful-feed ../DoEventsWEB lovable-change-manifest.json
-
 export CICD_DIR=$(pwd)
-export CURSOR_API_KEY=...
 export LOVABLE_DIR=../discover-joyful-feed
 export WEB_DIR=../DoEventsWEB
-python3 scripts/lovable-sync/run-port-agent-api.py
+python3 simulation/scripts/simulate-agent-dry-run.py
 ```
 
 ## Troubleshooting
 
 | Error | Solución |
 |-------|----------|
-| Gate ReglasAgente bloqueado | Ejecutar bootstrap; completar `reglas-front.md` |
+| Rama prohibida | Usar solo `feature/*` |
+| Gate ReglasAgente | Bootstrap `templates/ReglasAgente/` |
 | Cursor API 401 | Rotar `CURSOR_API_KEY` |
-| Push WEB falla | Verificar `DOEVENTS_WEB_PAT` |
-| Mocks detectados | Revisar `validate-no-mocks.sh` output |
+| Mocks detectados | Revisar salida `validate-no-mocks.sh` |
+| Build devaws falla | Revisar rama agente antes de deploy |

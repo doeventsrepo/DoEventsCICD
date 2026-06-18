@@ -1,29 +1,43 @@
-# Deploy DoEventsWEB a QA (S3 + CloudFront) — Automatizacion.html §17
-name: Deploy WEB QA
+# Deploy DoEventsWEB a QA — SOLO MANUAL (automatizacion deshabilitada)
+# Para emergencias: ejecutar manualmente con confirmacion explicita.
+name: Deploy WEB QA (manual)
 
 on:
   workflow_dispatch:
-  workflow_call:
-  push:
-    branches: [develop]
-    paths:
-      - 'packages/**'
-      - 'config/**'
-      - 'package.json'
+    inputs:
+      confirm_manual_qa:
+        description: 'Escribe DEPLOY_QA_MANUAL para confirmar despliegue QA'
+        required: true
+        type: string
+      web_ref:
+        description: Rama a desplegar (default develop — solo uso manual)
+        required: false
+        default: develop
 
 concurrency:
-  group: deploy-web-qa
+  group: deploy-web-qa-manual
   cancel-in-progress: false
 
 jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirmacion obligatoria
+        run: |
+          if [ "${{ inputs.confirm_manual_qa }}" != "DEPLOY_QA_MANUAL" ]; then
+            echo "ERROR: confirmacion invalida. Este workflow NO forma parte del pipeline automatico DEV." >&2
+            exit 1
+          fi
+
   deploy:
+    needs: guard
     runs-on: ubuntu-latest
     environment: qa
     steps:
       - uses: actions/checkout@v4
         with:
           repository: doeventsrepo/DoEventsWEB
-          ref: develop
+          ref: ${{ inputs.web_ref }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
 
       - uses: actions/setup-node@v4
@@ -41,7 +55,7 @@ jobs:
           ! grep -RIn "mockEvents\|mockTickets\|mockOrders\|hardcodedEvents" packages/shell/src/pages 2>/dev/null | grep -v test || \
             (echo "Mocks detectados en pages/" && exit 1)
 
-      - name: Deploy S3 + CloudFront
+      - name: Deploy S3 + CloudFront QA
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -60,5 +74,5 @@ jobs:
           aws s3 cp packages/shell/dist/index.html "s3://${BUCKET}/index.html" --region us-east-2 \
             --content-type "text/html" --cache-control "public, max-age=0, must-revalidate"
           aws cloudfront create-invalidation --distribution-id "$CF" --paths "/*"
-          echo "Deploy QA: https://qa.doeventsapp.com"
+          echo "Deploy QA manual: https://qa.doeventsapp.com"
         '

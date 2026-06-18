@@ -3,6 +3,7 @@
 # Requiere: cursor-agent en PATH, CURSOR_API_KEY, CICD_DIR
 set -euo pipefail
 
+CICD_BASE_BRANCH="${CICD_WEB_BRANCH:-feature/cicd/dev-automation}"
 MODE="${MODE:-frontend-only}"
 BRANCH_NAME="${BRANCH_NAME:-feature/ai/apply-lovable-rules-${GITHUB_RUN_ID:-local}}"
 CICD_DIR="${CICD_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
@@ -37,7 +38,7 @@ No mocks. No producción. Documenta en ReglasAgente/.
 cd "$WEB_DIR" 2>/dev/null || true
 npm install
 npm run lint 2>/dev/null || true
-npm run build:qa
+npm run build:devaws
 
 bash "${CICD_DIR}/scripts/lovable-sync/validate-no-mocks.sh" "$WEB_DIR"
 
@@ -46,7 +47,7 @@ git commit -m "feat(ai): apply Lovable reglasActuacion changes" || echo "Sin cam
 git push origin "$BRANCH_NAME" || true
 
 if command -v gh >/dev/null 2>&1; then
-  gh pr create --base develop --head "$BRANCH_NAME" \
+  gh pr create --base "$CICD_BASE_BRANCH" --head "$BRANCH_NAME" \
     --title "feat(ai): apply Lovable reglasActuacion changes" \
     --body-file "${WEB_DIR}/ReglasAgente/decision-log.md" 2>/dev/null || true
 fi

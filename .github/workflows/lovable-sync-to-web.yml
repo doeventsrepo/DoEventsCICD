@@ -1,12 +1,12 @@
-# Orquestador principal: Lovable → Cursor Agent → DoEventsWEB (+ Back opcional)
-# Arquitectura: Automatizacion.html secciones 8-10, 14-15
-name: Lovable Sync to WEB
+# Orquestador DEV-only: Lovable → Cursor Agent (empalme) → DoEventsWEB → dev.doeventsapp.com
+# NO despliega QA. Ramas feature/* en WEB/Back. Prohibido develop/release/main.
+name: Lovable Sync to WEB (DEV)
 
 on:
   workflow_dispatch:
     inputs:
       run_agent:
-        description: Ejecutar agente Cursor (adaptar codigo)
+        description: Ejecutar agente Cursor (empalme, no copia literal)
         required: false
         default: 'true'
         type: choice
@@ -25,14 +25,18 @@ on:
         description: SHA o rama del repo diseño (discover-joyful-feed)
         required: false
         default: main
-      deploy_qa_after:
-        description: Desplegar QA tras adaptacion exitosa (requiere AWS secrets)
+      deploy_dev_after:
+        description: Desplegar DEV sa-east-1 tras adaptacion exitosa
         required: false
-        default: 'false'
+        default: 'true'
         type: choice
         options:
           - 'true'
           - 'false'
+      web_cicd_branch:
+        description: Rama base DoEventsWEB (debe ser feature/*)
+        required: false
+        default: feature/cicd/dev-automation
   repository_dispatch:
     types: [lovable-sync]
   workflow_call:
@@ -46,12 +50,15 @@ on:
       lovable_ref:
         type: string
         default: main
-      deploy_qa_after:
+      deploy_dev_after:
         type: string
-        default: 'false'
+        default: 'true'
+      web_cicd_branch:
+        type: string
+        default: feature/cicd/dev-automation
 
 concurrency:
-  group: lovable-sync-web
+  group: lovable-sync-dev
   cancel-in-progress: false
 
 env:
@@ -59,21 +66,53 @@ env:
   DESIGN_REPO: doeventsrepo/discover-joyful-feed
   WEB_REPO: doeventsrepo/DoEventsWEB
   BACK_REPO: doeventsrepo/DoEventsBack
+  WEB_CICD_BRANCH: feature/cicd/dev-automation
+  BACK_CICD_BRANCH: feature/cicd/dev-automation
+  PROTECTED_BRANCHES: main,develop,release
 
 permissions:
   contents: read
 
 jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bloquear ramas protegidas
+        env:
+          WEB_BRANCH: ${{ inputs.web_cicd_branch || github.event.inputs.web_cicd_branch || github.event.client_payload.web_cicd_branch || env.WEB_CICD_BRANCH }}
+        run: |
+          set -euo pipefail
+          branch="${WEB_BRANCH,,}"
+          for forbidden in main develop release; do
+            if [ "$branch" = "$forbidden" ] || [[ "$branch" == release/* ]]; then
+              echo "ERROR: rama prohibida para automatizacion: $WEB_BRANCH" >&2
+              exit 1
+            fi
+          done
+          if [[ ! "$branch" == feature/* ]]; then
+            echo "ERROR: la automatizacion solo permite ramas feature/* (recibido: $WEB_BRANCH)" >&2
+            exit 1
+          fi
+          echo "Rama WEB valida: $WEB_BRANCH"
+
   prepare:
+    needs: guard
     runs-on: ubuntu-latest
     outputs:
       lovable_sha: ${{ steps.manifest.outputs.sha }}
       requires_agent: ${{ steps.manifest.outputs.requires_agent }}
+      web_branch: ${{ steps.branch.outputs.web_branch }}
     steps:
       - name: Checkout DoEventsCICD
         uses: actions/checkout@v4
         with:
           path: cicd
+
+      - name: Resolver rama WEB
+        id: branch
+        run: |
+          WEB_BRANCH="${{ inputs.web_cicd_branch || github.event.inputs.web_cicd_branch || github.event.client_payload.web_cicd_branch || env.WEB_CICD_BRANCH }}"
+          echo "web_branch=$WEB_BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Checkout Lovable (diseño)
         uses: actions/checkout@v4
@@ -83,11 +122,11 @@ jobs:
           path: lovable
           fetch-depth: 0
 
-      - name: Checkout DoEventsWEB
+      - name: Checkout DoEventsWEB (rama feature)
         uses: actions/checkout@v4
         with:
           repository: ${{ env.WEB_REPO }}
-          ref: develop
+          ref: ${{ steps.branch.outputs.web_branch }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: DoEventsWEB
 
@@ -118,6 +157,8 @@ jobs:
       - name: Analizar cambios Lovable
         id: manifest
         working-directory: lovable
+        env:
+          CICD_WEB_BRANCH: ${{ steps.branch.outputs.web_branch }}
         run: |
           LOVABLE_SHA=$(git rev-parse HEAD)
           python3 ../cicd/scripts/lovable-sync/analyze-lovable-diff.py . "__last_sync__" "$LOVABLE_SHA" ../DoEventsWEB || true
@@ -131,8 +172,6 @@ jobs:
         run: |
           python3 cicd/scripts/lovable-sync/build-agent-context.py \
             lovable DoEventsWEB cicd/lovable-change-manifest.json lovable/.ai/agent-sync-context.md
-        env:
-          CICD_DIR: ${{ env.CICD_DIR }}
 
       - name: Preparar artefactos ReglasAgente
         env:
@@ -141,10 +180,11 @@ jobs:
           python3 cicd/scripts/lovable-sync/generate-agent-artifacts.py \
             lovable DoEventsWEB cicd/lovable-change-manifest.json
 
-      - name: Commit artefactos ReglasAgente
+      - name: Commit artefactos ReglasAgente (rama feature)
         working-directory: DoEventsWEB
         env:
           WEB_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
+          WEB_CICD_BRANCH: ${{ steps.branch.outputs.web_branch }}
         run: |
           git config user.name "doevents-cicd-bot"
           git config user.email "cicd@doeventsapp.com"
@@ -153,8 +193,8 @@ jobs:
             echo "ReglasAgente sin cambios"
             exit 0
           fi
-          git commit -m "chore(docs): preparar ReglasAgente para adaptacion Lovable [cicd:${{ github.run_id }}]"
-          git push "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git" develop
+          git commit -m "chore(docs): preparar ReglasAgente para empalme Lovable→DEV [cicd:${{ github.run_id }}]"
+          git push "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git" "${WEB_CICD_BRANCH}"
 
   adapt:
     needs: prepare
@@ -162,6 +202,8 @@ jobs:
       (inputs.run_agent == 'true' || github.event.inputs.run_agent == 'true' || github.event.client_payload.run_agent == 'true')
       && needs.prepare.outputs.requires_agent == 'true'
     runs-on: ubuntu-latest
+    outputs:
+      agent_branch: ${{ steps.agent_meta.outputs.branch }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -177,7 +219,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ${{ env.WEB_REPO }}
-          ref: develop
+          ref: ${{ needs.prepare.outputs.web_branch }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: DoEventsWEB
 
@@ -186,41 +228,67 @@ jobs:
           python-version: '3.11'
       - run: pip install -r cicd/requirements.txt
 
+      - name: Meta rama agente
+        id: agent_meta
+        run: |
+          SHA="${{ needs.prepare.outputs.lovable_sha }}"
+          BRANCH="feature/lovable/adapt-${SHA:0:8}"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
       - name: Gate ReglasAgente
         run: python3 cicd/scripts/lovable-sync/validate-agent-gate.py DoEventsWEB
 
       - name: Manifiesto y contexto
+        env:
+          CICD_WEB_BRANCH: ${{ needs.prepare.outputs.web_branch }}
         run: |
           python3 cicd/scripts/lovable-sync/analyze-lovable-diff.py lovable "__last_sync__" HEAD DoEventsWEB || true
           cp lovable/lovable-change-manifest.json cicd/lovable-change-manifest.json
           python3 cicd/scripts/lovable-sync/build-agent-context.py \
             lovable DoEventsWEB cicd/lovable-change-manifest.json lovable/.ai/agent-sync-context.md
-        env:
-          CICD_DIR: ${{ github.workspace }}/cicd
 
-      - name: Agente Cursor — adaptar sin copia literal
+      - name: Agente Cursor — empalme (NO copia literal)
+        id: agent_run
         env:
           CICD_DIR: ${{ github.workspace }}/cicd
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           LOVABLE_DIR: ${{ github.workspace }}/lovable
           WEB_DIR: ${{ github.workspace }}/DoEventsWEB
           LOVABLE_SHA: ${{ needs.prepare.outputs.lovable_sha }}
-          WEB_STARTING_REF: develop
+          WEB_STARTING_REF: ${{ needs.prepare.outputs.web_branch }}
+          BACK_STARTING_REF: ${{ env.BACK_CICD_BRANCH }}
+          AGENT_BRANCH: ${{ steps.agent_meta.outputs.branch }}
           AGENT_WAIT: "true"
           AGENT_AUTO_PR: "false"
-          AGENT_INCLUDE_BACK: ${{ (inputs.agent_mode == 'fullstack' || github.event.inputs.agent_mode == 'fullstack') && 'true' || 'false' }}
+          AGENT_INCLUDE_BACK: ${{ (inputs.agent_mode == 'fullstack' || github.event.inputs.agent_mode == 'fullstack' || github.event.client_payload.agent_mode == 'fullstack') && 'true' || 'false' }}
           CURSOR_AGENT_MODEL: composer-2.5
+          TARGET_ENV: dev
+          BUILD_COMMAND: npm run build:devaws
         run: python3 cicd/scripts/lovable-sync/run-port-agent-api.py
 
       - name: Validar anti-mocks (post-agente)
         if: always()
         run: bash cicd/scripts/lovable-sync/validate-no-mocks.sh DoEventsWEB
 
-  deploy-qa:
+      - name: Validar build DEV en rama agente
+        if: steps.agent_run.outcome == 'success'
+        run: |
+          rm -rf DoEventsWEB-verify
+          git clone --depth 1 --branch "${{ steps.agent_meta.outputs.branch }}" \
+            "https://x-access-token:${{ secrets.DOEVENTS_WEB_PAT }}@github.com/${{ env.WEB_REPO }}.git" \
+            DoEventsWEB-verify
+          cd DoEventsWEB-verify
+          npm ci
+          npm run build:devaws
+
+  deploy-dev:
     needs: [prepare, adapt]
     if: |
       always() &&
-      needs.adapt.result == 'success' &&
-      (inputs.deploy_qa_after == 'true' || github.event.inputs.deploy_qa_after == 'true')
-    uses: ./.github/workflows/deploy-web-qa.yml
+      needs.prepare.result == 'success' &&
+      (needs.adapt.result == 'success' || needs.adapt.result == 'skipped') &&
+      (inputs.deploy_dev_after == 'true' || github.event.inputs.deploy_dev_after == 'true' || github.event.client_payload.deploy_dev_after == 'true' || github.event_name == 'repository_dispatch')
+    uses: ./.github/workflows/deploy-web-dev.yml
+    with:
+      web_ref: ${{ needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
     secrets: inherit

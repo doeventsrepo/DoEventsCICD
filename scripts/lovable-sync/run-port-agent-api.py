@@ -95,24 +95,38 @@ def main() -> int:
         context = read_optional(os.path.join(cicd_dir, ".ai", "agent-sync-context.md"))
 
     mandatory = f"""
-# CONDICION DE EJECUCION — SIN ESTO NO MODIFICAR CODIGO
+# CONDICION DE EJECUCION — EMPALME OBLIGATORIO (NO COPY-PASTE)
 
 Has leido `ReglasAgente/reglas-front.md`. Cumple TODAS las secciones (1-15).
 
+## ENTORNO OBJETIVO
+- Despliegue automatico: **DEV sa-east-1** (`dev.doeventsapp.com`, `api-dev.doeventsapp.com`)
+- **PROHIBIDO** desplegar o configurar QA en este run
+- Build obligatorio: `npm run build:devaws` (NO build:qa)
+
+## EMPALME (adaptacion) — OBLIGATORIO
+- Interpreta la intencion UX/reglas de Lovable e integrala en componentes **EXISTENTES**
+- Reutiliza `lovable-bridge/*`, `@doevents/shared`, servicios API reales
+- Valida campos, props, endpoints y tablas DynamoDB `-dev` antes de cambiar codigo
+- Si Lovable trae mockData/sampleData: **NO** llevarlo a runtime; usar hooks/servicios reales
+- Si falta endpoint backend: documentar en `impacto-backend.md` como BACKEND_REQUIRED sin inventar datos
+
 ## PROHIBIDO
-- Copiar literalmente archivos de Lovable a `packages/shell/src/lovable/`
-- Sobrescribir MapView, ProfileView, LovableLayout sin adaptacion manual justificada
-- Usar mocks de Lovable en runtime
+- Copiar/pegar archivos completos de Lovable sobre `packages/shell/src/lovable/`
+- Sobrescribir MapView, ProfileView, LovableLayout sin adaptacion justificada
+- Usar mocks de Lovable en `pages/` o desconectar backend
+- Push a ramas main, develop, release o release/*
 - Commit sin actualizar ReglasAgente/cambios-lovable.json, decision-log.md
 
 ## OBLIGATORIO AL TERMINAR
-1. Resumen del cambio
+1. Resumen del empalme (que cambio y por que)
 2. Tipo: VISUAL / FRONT_LOGIC / BACKEND_REQUIRED / RISKY
-3. Archivos WEB modificados
-4. Archivos DoEventsBack (si aplica)
+3. Archivos WEB modificados (lista)
+4. Archivos DoEventsBack (si aplica, rama feature/cicd/dev-automation)
 5. Evidencia mocksUsed: false
-6. npm run build:qa exitoso
+6. `npm run build:devaws` exitoso
 7. Riesgos pendientes en decision-log.md
+8. Push a rama `{branch}` (feature/lovable/*)
 
 ## Reglas completas
 {rules_content}
@@ -134,11 +148,13 @@ Has leido `ReglasAgente/reglas-front.md`. Cumple TODAS las secciones (1-15).
 """
 
     branch = os.environ.get("AGENT_BRANCH", f"feature/lovable/adapt-{lovable_sha[:8]}")
+    web_ref = os.environ.get("WEB_STARTING_REF", "feature/cicd/dev-automation")
+    back_ref = os.environ.get("BACK_STARTING_REF", "feature/cicd/dev-automation")
     repos = [
-        {"url": "https://github.com/doeventsrepo/DoEventsWEB", "startingRef": os.environ.get("WEB_STARTING_REF", "develop")},
+        {"url": "https://github.com/doeventsrepo/DoEventsWEB", "startingRef": web_ref},
     ]
     if os.environ.get("AGENT_INCLUDE_BACK", "true").lower() == "true":
-        repos.append({"url": "https://github.com/doeventsrepo/DoEventsBack", "startingRef": "develop"})
+        repos.append({"url": "https://github.com/doeventsrepo/DoEventsBack", "startingRef": back_ref})
 
     payload = {
         "prompt": {"text": text},

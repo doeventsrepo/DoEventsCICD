@@ -1,18 +1,37 @@
-name: Deploy Backend QA
+# Deploy Backend QA — SOLO MANUAL (no pipeline automatico)
+name: Deploy Backend QA (manual)
 
 on:
   workflow_dispatch:
-  workflow_call:
+    inputs:
+      confirm_manual_qa:
+        description: 'Escribe DEPLOY_QA_MANUAL para confirmar'
+        required: true
+        type: string
+      back_ref:
+        description: Rama DoEventsBack
+        required: false
+        default: feature/cicd/dev-automation
 
 jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          if [ "${{ inputs.confirm_manual_qa }}" != "DEPLOY_QA_MANUAL" ]; then
+            echo "ERROR: QA manual only" >&2
+            exit 1
+          fi
+
   deploy-login:
+    needs: guard
     runs-on: ubuntu-latest
     environment: qa
     steps:
       - uses: actions/checkout@v4
         with:
           repository: doeventsrepo/DoEventsBack
-          ref: develop
+          ref: ${{ inputs.back_ref }}
 
       - uses: actions/setup-node@v4
         with:

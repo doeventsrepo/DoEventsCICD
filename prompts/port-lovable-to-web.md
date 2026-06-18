@@ -30,10 +30,10 @@ Diseño de Lovable sí. Mocks de Lovable no. Backend real siempre.
 2. Leer REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md
 3. Leer manifiesto + agent-sync-context.md + reglas YAML Lovable (referencia)
 4. Clasificar: VISUAL | FRONTEND_LOGIC | BACKEND_REQUIRED | RISKY
-5. Adaptar en componentes EXISTENTES (pages/, lovable-bridge/) — no copia literal
-6. npm run build:qa
+5. Adaptar en componentes EXISTENTES (pages/, lovable-bridge/) — **empalme**, no copia literal
+6. npm run build:devaws
 7. Actualizar ReglasAgente/ (4 archivos)
-8. Commits separados por tipo
+8. Commits en rama feature/lovable/adapt-{sha} — **NO** push a develop/main/release
 ```
 
 ## Arquitectura
@@ -58,7 +58,7 @@ Diseño de Lovable sí. Mocks de Lovable no. Backend real siempre.
 
 ## Validación final
 
-`npm run build:qa` debe pasar. Ejecutar búsqueda anti-mock:
+`npm run build:devaws` debe pasar (entorno DEV sa-east-1). Ejecutar búsqueda anti-mock:
 
 ```bash
 grep -R "mock\|fake\|dummy\|sampleData\|hardcoded" packages/shell/src/pages || true

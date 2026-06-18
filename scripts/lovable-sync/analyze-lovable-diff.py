@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -38,8 +39,9 @@ def resolve_before(cwd: Path, before: str) -> str:
 
 
 def last_synced_lovable_sha(web: Path) -> str | None:
+    branch = os.environ.get("CICD_WEB_BRANCH", "feature/cicd/dev-automation")
     try:
-        out = git(["log", "-1", "--grep=lovable(sync)", "--format=%s", "develop"], web)
+        out = git(["log", "-1", "--grep=lovable(sync)", "--format=%s", branch], web)
     except subprocess.CalledProcessError:
         return None
     if not out:

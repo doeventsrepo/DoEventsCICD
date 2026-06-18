@@ -1,0 +1,92 @@
+# Deploy DoEventsWEB a DEV sa-east-1 (dev.doeventsapp.com)
+# Solo ramas feature/* — NO develop/release/main
+name: Deploy WEB DEV
+
+on:
+  workflow_dispatch:
+    inputs:
+      web_ref:
+        description: Rama DoEventsWEB a desplegar (feature/*)
+        required: false
+        default: feature/cicd/dev-automation
+  workflow_call:
+    inputs:
+      web_ref:
+        type: string
+        default: feature/cicd/dev-automation
+
+concurrency:
+  group: deploy-web-dev
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar rama feature
+        env:
+          REF: ${{ inputs.web_ref || 'feature/cicd/dev-automation' }}
+        run: |
+          branch="${REF,,}"
+          for forbidden in main develop release; do
+            if [ "$branch" = "$forbidden" ] || [[ "$branch" == release/* ]]; then
+              echo "ERROR: rama prohibida para deploy DEV automatico: $REF" >&2
+              exit 1
+            fi
+          done
+          if [[ ! "$branch" == feature/* ]]; then
+            echo "ERROR: deploy DEV solo desde ramas feature/* (recibido: $REF)" >&2
+            exit 1
+          fi
+
+  deploy:
+    needs: guard
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: doeventsrepo/DoEventsWEB
+          ref: ${{ inputs.web_ref || 'feature/cicd/dev-automation' }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Build DEV (devaws)
+        env:
+          VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
+        run: npm ci && npm run build:devaws
+
+      - name: Validar anti-mocks
+        run: |
+          curl -fsSL -o validate.sh https://raw.githubusercontent.com/doeventsrepo/DoEventsCICD/main/scripts/lovable-sync/validate-no-mocks.sh || true
+          if [ -f validate.sh ]; then bash validate.sh .; fi
+          ! grep -RIn "mockEvents\|mockTickets\|mockOrders\|hardcodedEvents" packages/shell/src/pages 2>/dev/null | grep -v test || \
+            (echo "Mocks detectados en pages/" && exit 1)
+
+      - name: Deploy S3 + CloudFront (sa-east-1)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          AWS_REGION: sa-east-1
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_DEV }}
+        run: bash -c '
+          set -euo pipefail
+          BUCKET="${S3_BUCKET_DEV:-doevents-web-dev}"
+          CF="${CLOUDFRONT_DISTRIBUTION_ID_DEV:-${CLOUDFRONT_DISTRIBUTION_ID}}"
+          aws s3 sync packages/shell/dist/ "s3://${BUCKET}/" --delete --region sa-east-1 \
+            --cache-control "public, max-age=0, must-revalidate"
+          aws s3 sync packages/mfe-auth/dist/ "s3://${BUCKET}/mfe-auth/" --delete --region sa-east-1 \
+            --cache-control "public, max-age=0, must-revalidate" \
+            --exclude "index.html" --exclude ".dev-server/*" --exclude "@mf-types/*"
+          aws s3 cp packages/mfe-auth/dist/index.html "s3://${BUCKET}/mfe-auth/index.html" --region sa-east-1
+          aws s3 cp packages/shell/dist/index.html "s3://${BUCKET}/index.html" --region sa-east-1 \
+            --content-type "text/html" --cache-control "public, max-age=0, must-revalidate"
+          if [ -n "$CF" ]; then
+            aws cloudfront create-invalidation --distribution-id "$CF" --paths "/*"
+          fi
+          echo "Deploy DEV desde rama ${{ inputs.web_ref || '"'"'feature/cicd/dev-automation'"'"' }}: https://dev.doeventsapp.com"
+        '

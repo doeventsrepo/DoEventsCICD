@@ -1,5 +1,6 @@
 # Copiar a discover-joyful-feed/.github/workflows/trigger-cicd-sync.yml
-name: Trigger DoEventsCICD Sync
+# Dispara pipeline DEV-only (NO QA). WEB/Back en ramas feature/*.
+name: Trigger DoEventsCICD Sync (DEV)
 
 on:
   push:
@@ -14,18 +15,26 @@ on:
         default: 'true'
         type: choice
         options: ['true', 'false']
+      agent_mode:
+        default: frontend-only
+        type: choice
+        options:
+          - frontend-only
+          - fullstack
 
 jobs:
   trigger:
     runs-on: ubuntu-latest
     steps:
-      - name: Disparar pipeline centralizado
+      - name: Disparar pipeline DEV (sa-east-1)
         env:
           GH_TOKEN: ${{ secrets.DOEVENTS_CICD_PAT }}
         run: |
-          gh workflow run lovable-sync-to-web.yml \
+          gh workflow run "lovable-sync-to-web.yml" \
             --repo doeventsrepo/DoEventsCICD \
             --ref main \
             -f run_agent="${{ inputs.run_agent || 'true' }}" \
-            -f agent_mode=frontend-only \
-            -f lovable_ref="${{ github.sha }}"
+            -f agent_mode="${{ inputs.agent_mode || 'frontend-only' }}" \
+            -f lovable_ref="${{ github.sha }}" \
+            -f deploy_dev_after=true \
+            -f web_cicd_branch=feature/cicd/dev-automation

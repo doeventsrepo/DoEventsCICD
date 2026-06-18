@@ -37,11 +37,29 @@ agent_permissions:
 
   forbidden_actions:
     - production_deploy
+    - qa_automatic_deploy
+    - deploy_to_qa_from_pipeline
     - force_push_main
     - force_push_develop
+    - force_push_release
+    - push_to_develop
+    - push_to_main
+    - push_to_release
+    - push_to_integration_branch
     - delete_dynamodb_tables
     - modify_aws_secrets
     - disable_authentication
+    - literal_lovable_copy_paste
+    - introduce_lovable_mocks_in_runtime
+
+branch_policy:
+  automation_allowed_prefixes:
+    - feature/
+  automation_forbidden:
+    - main
+    - develop
+    - release
+    - release/*
 
 cursor:
   max_files_per_run: 40

@@ -1,0 +1,22 @@
+# Deploy DoEventsWEB QA — CodeBuild
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+  pre_build:
+    commands:
+      - npm ci
+  build:
+    commands:
+      - npm run build:qa
+      - |
+        BUCKET="${S3_BUCKET:-doevents-web-qa}"
+        CF="${CLOUDFRONT_DISTRIBUTION_ID:-E3UV9NHXADGSAJ}"
+        aws s3 sync packages/shell/dist/ "s3://${BUCKET}/" --delete --region us-east-2
+        aws s3 sync packages/mfe-auth/dist/ "s3://${BUCKET}/mfe-auth/" --delete --region us-east-2 \
+          --exclude "index.html" --exclude "@mf-types/*"
+        aws s3 cp packages/mfe-auth/dist/index.html "s3://${BUCKET}/mfe-auth/index.html" --region us-east-2
+        aws s3 cp packages/shell/dist/index.html "s3://${BUCKET}/index.html" --region us-east-2
+        aws cloudfront create-invalidation --distribution-id "$CF" --paths "/*"

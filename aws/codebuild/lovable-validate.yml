@@ -1,0 +1,19 @@
+# Validacion diseño Lovable (CodeBuild)
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+      python: 3.11
+    commands:
+      - git clone --depth 1 https://github.com/doeventsrepo/DoEventsCICD.git cicd || true
+  build:
+    commands:
+      - |
+        if [ -d reglasActuacion ] && [ -f cicd/scripts/lovable-sync/validate-rules.py ]; then
+          pip install pyyaml -q
+          python3 cicd/scripts/lovable-sync/validate-rules.py reglasActuacion
+        else
+          echo "Sin reglasActuacion; OK"
+        fi

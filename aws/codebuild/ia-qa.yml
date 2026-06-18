@@ -1,0 +1,13 @@
+# Deploy DoEventsIA QA — CodeBuild
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - npm install -g serverless@3
+  build:
+    commands:
+      - npm ci
+      - npx serverless deploy --config serverless.qa.yml --stage qa --region "${AWS_REGION:-us-east-2}"

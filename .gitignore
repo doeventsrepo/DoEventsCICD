@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.ai/agent-sync-context.md
+lovable-change-manifest.json
+__pycache__/
+*.pyc
+.venv/

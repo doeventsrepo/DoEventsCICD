@@ -1,0 +1,31 @@
+version: "1.0"
+project: DoEvents
+
+policies:
+  require_human_approval:
+    - production_deploy
+    - schema_migrations
+    - payment_rule_changes
+    - ticket_inventory_changes
+    - auth_changes
+  allowed_auto_actions:
+    - lint
+    - test
+    - validate_yaml_rules
+    - open_pull_request
+    - suggest_code_changes
+    - deploy_qa_with_approval
+
+cursor:
+  max_files_per_run: 40
+  forbidden_paths:
+    - "**/.env*"
+    - "**/credentials*"
+    - "**/node_modules/**"
+
+repositories:
+  cicd: doeventsrepo/DoEventsCICD
+  design: doeventsrepo/discover-joyful-feed
+  frontend: doeventsrepo/DoEventsWEB
+  backend: doeventsrepo/DoEventsBack
+  ia: doeventsrepo/DoEventsIA

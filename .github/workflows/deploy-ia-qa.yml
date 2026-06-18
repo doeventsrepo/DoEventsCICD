@@ -1,0 +1,30 @@
+name: Deploy IA QA
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  deploy-ia:
+    runs-on: ubuntu-latest
+    environment: qa
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: doeventsrepo/DoEventsIA
+          ref: develop
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Deploy DoEventsIA
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-2
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        run: |
+          npm install -g serverless@3
+          npm ci
+          npx serverless deploy --config serverless.qa.yml --stage qa --region us-east-2

@@ -1,0 +1,64 @@
+# Deploy DoEventsWEB a QA (S3 + CloudFront) — Automatizacion.html §17
+name: Deploy WEB QA
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [develop]
+    paths:
+      - 'packages/**'
+      - 'config/**'
+      - 'package.json'
+
+concurrency:
+  group: deploy-web-qa
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: qa
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: doeventsrepo/DoEventsWEB
+          ref: develop
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Build QA
+        run: npm ci && npm run build:qa
+
+      - name: Validar anti-mocks
+        run: |
+          curl -fsSL -o validate.sh https://raw.githubusercontent.com/doeventsrepo/DoEventsCICD/main/scripts/lovable-sync/validate-no-mocks.sh || true
+          if [ -f validate.sh ]; then bash validate.sh .; fi
+          ! grep -RIn "mockEvents\|mockTickets\|mockOrders\|hardcodedEvents" packages/shell/src/pages 2>/dev/null | grep -v test || \
+            (echo "Mocks detectados en pages/" && exit 1)
+
+      - name: Deploy S3 + CloudFront
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-2
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: bash -c '
+          set -euo pipefail
+          BUCKET="${S3_BUCKET:-doevents-web-qa}"
+          CF="${CLOUDFRONT_DISTRIBUTION_ID:-E3UV9NHXADGSAJ}"
+          aws s3 sync packages/shell/dist/ "s3://${BUCKET}/" --delete --region us-east-2 \
+            --cache-control "public, max-age=0, must-revalidate"
+          aws s3 sync packages/mfe-auth/dist/ "s3://${BUCKET}/mfe-auth/" --delete --region us-east-2 \
+            --cache-control "public, max-age=0, must-revalidate" \
+            --exclude "index.html" --exclude ".dev-server/*" --exclude "@mf-types/*"
+          aws s3 cp packages/mfe-auth/dist/index.html "s3://${BUCKET}/mfe-auth/index.html" --region us-east-2
+          aws s3 cp packages/shell/dist/index.html "s3://${BUCKET}/index.html" --region us-east-2 \
+            --content-type "text/html" --cache-control "public, max-age=0, must-revalidate"
+          aws cloudfront create-invalidation --distribution-id "$CF" --paths "/*"
+          echo "Deploy QA: https://qa.doeventsapp.com"
+        '

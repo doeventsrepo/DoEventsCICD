@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "description": "Historial de adaptaciones Lovable → DoEventsWEB",
+  "policy": {
+    "noLiteralCopy": true,
+    "noLovableMocksInRuntime": true,
+    "requireBuildQa": true
+  },
+  "runs": []
+}

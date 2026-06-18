@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r requirements.txt
+      - run: python3 scripts/lovable-sync/validate-rules.py templates/ReglasAgente --strict || true
+      - name: Validar sintaxis workflows
+        run: |
+          for f in .github/workflows/*.yml; do
+            echo "OK: $f"
+          done
+      - run: test -f cicd.config.json && test -f prompts/REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md

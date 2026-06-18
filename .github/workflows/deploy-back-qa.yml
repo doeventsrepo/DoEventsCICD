@@ -1,0 +1,30 @@
+name: Deploy Backend QA
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  deploy-login:
+    runs-on: ubuntu-latest
+    environment: qa
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: doeventsrepo/DoEventsBack
+          ref: develop
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Deploy aws-lambda-login
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-2
+        run: |
+          npm install -g serverless@3.38.0
+          cd aws-lambda-login
+          npm install --omit=dev
+          npx serverless deploy --config serverless.qa.yml --stage qa --region us-east-2

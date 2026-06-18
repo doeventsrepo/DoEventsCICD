@@ -1,0 +1,40 @@
+{
+  "version": "1.0",
+  "description": "Mapeo de rutas Lovable (discover-joyful-feed) → DoEventsWEB",
+  "mapping": [
+    {
+      "lovable": "src/components/",
+      "web": "packages/shell/src/lovable/components/"
+    },
+    {
+      "lovable": "src/pages/",
+      "web": "packages/shell/src/pages/"
+    },
+    {
+      "lovable": "src/contexts/",
+      "web": "packages/shell/src/lovable/contexts/"
+    },
+    {
+      "lovable": "src/hooks/",
+      "web": "packages/shell/src/lovable/hooks/"
+    },
+    {
+      "lovable": "public/",
+      "web": "packages/shell/public/"
+    },
+    {
+      "lovable": "reglasActuacion/",
+      "web": "reglasActuacion/"
+    }
+  ],
+  "forbidden": [
+    "src/integrations/supabase/",
+    "supabase/"
+  ],
+  "agentManaged": [
+    "packages/shell/src/lovable-bridge/",
+    "ReglasAgente/",
+    "docs/changes/"
+  ],
+  "notes": "El agente adapta via lovable-bridge; no port determinístico de componentes completos."
+}

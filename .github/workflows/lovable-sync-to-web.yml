@@ -1,0 +1,226 @@
+# Orquestador principal: Lovable → Cursor Agent → DoEventsWEB (+ Back opcional)
+# Arquitectura: Automatizacion.html secciones 8-10, 14-15
+name: Lovable Sync to WEB
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_agent:
+        description: Ejecutar agente Cursor (adaptar codigo)
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      agent_mode:
+        description: Modo del agente
+        required: false
+        default: frontend-only
+        type: choice
+        options:
+          - frontend-only
+          - fullstack
+      lovable_ref:
+        description: SHA o rama del repo diseño (discover-joyful-feed)
+        required: false
+        default: main
+      deploy_qa_after:
+        description: Desplegar QA tras adaptacion exitosa (requiere AWS secrets)
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+  repository_dispatch:
+    types: [lovable-sync]
+  workflow_call:
+    inputs:
+      run_agent:
+        type: string
+        default: 'true'
+      agent_mode:
+        type: string
+        default: frontend-only
+      lovable_ref:
+        type: string
+        default: main
+      deploy_qa_after:
+        type: string
+        default: 'false'
+
+concurrency:
+  group: lovable-sync-web
+  cancel-in-progress: false
+
+env:
+  CICD_DIR: ${{ github.workspace }}/cicd
+  DESIGN_REPO: doeventsrepo/discover-joyful-feed
+  WEB_REPO: doeventsrepo/DoEventsWEB
+  BACK_REPO: doeventsrepo/DoEventsBack
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      lovable_sha: ${{ steps.manifest.outputs.sha }}
+      requires_agent: ${{ steps.manifest.outputs.requires_agent }}
+    steps:
+      - name: Checkout DoEventsCICD
+        uses: actions/checkout@v4
+        with:
+          path: cicd
+
+      - name: Checkout Lovable (diseño)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DESIGN_REPO }}
+          ref: ${{ inputs.lovable_ref || github.event.client_payload.ref || 'main' }}
+          path: lovable
+          fetch-depth: 0
+
+      - name: Checkout DoEventsWEB
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          ref: develop
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsWEB
+
+      - name: Bootstrap ReglasAgente si falta
+        run: |
+          for f in reglas-front.md cambios-lovable.json decision-log.md impacto-backend.md; do
+            if [ ! -f "DoEventsWEB/ReglasAgente/$f" ]; then
+              mkdir -p DoEventsWEB/ReglasAgente
+              cp "cicd/templates/ReglasAgente/$f" "DoEventsWEB/ReglasAgente/$f"
+            fi
+          done
+          if [ ! -f DoEventsWEB/.lovable-port-map.json ]; then
+            cp cicd/templates/.lovable-port-map.json DoEventsWEB/.lovable-port-map.json
+          fi
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r cicd/requirements.txt
+
+      - name: Validar reglas YAML Lovable
+        run: python3 cicd/scripts/lovable-sync/validate-rules.py lovable/reglasActuacion
+
+      - name: Gate obligatorio ReglasAgente
+        run: python3 cicd/scripts/lovable-sync/validate-agent-gate.py DoEventsWEB
+
+      - name: Analizar cambios Lovable
+        id: manifest
+        working-directory: lovable
+        run: |
+          LOVABLE_SHA=$(git rev-parse HEAD)
+          python3 ../cicd/scripts/lovable-sync/analyze-lovable-diff.py . "__last_sync__" "$LOVABLE_SHA" ../DoEventsWEB || true
+          cp lovable-change-manifest.json ../cicd/lovable-change-manifest.json
+          requires=$(python3 -c "import json; print(json.load(open('../cicd/lovable-change-manifest.json')).get('requiresAgent', True))")
+          echo "requires_agent=$requires" >> "$GITHUB_OUTPUT"
+          echo "sha=$LOVABLE_SHA" >> "$GITHUB_OUTPUT"
+          cat ../cicd/lovable-change-manifest.json
+
+      - name: Construir contexto agente
+        run: |
+          python3 cicd/scripts/lovable-sync/build-agent-context.py \
+            lovable DoEventsWEB cicd/lovable-change-manifest.json lovable/.ai/agent-sync-context.md
+        env:
+          CICD_DIR: ${{ env.CICD_DIR }}
+
+      - name: Preparar artefactos ReglasAgente
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          python3 cicd/scripts/lovable-sync/generate-agent-artifacts.py \
+            lovable DoEventsWEB cicd/lovable-change-manifest.json
+
+      - name: Commit artefactos ReglasAgente
+        working-directory: DoEventsWEB
+        env:
+          WEB_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
+        run: |
+          git config user.name "doevents-cicd-bot"
+          git config user.email "cicd@doeventsapp.com"
+          git add ReglasAgente/ docs/changes/lovable-backend-impact.md .lovable-port-map.json 2>/dev/null || true
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "ReglasAgente sin cambios"
+            exit 0
+          fi
+          git commit -m "chore(docs): preparar ReglasAgente para adaptacion Lovable [cicd:${{ github.run_id }}]"
+          git push "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git" develop
+
+  adapt:
+    needs: prepare
+    if: |
+      (inputs.run_agent == 'true' || github.event.inputs.run_agent == 'true' || github.event.client_payload.run_agent == 'true')
+      && needs.prepare.outputs.requires_agent == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cicd
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DESIGN_REPO }}
+          ref: ${{ needs.prepare.outputs.lovable_sha }}
+          path: lovable
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          ref: develop
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsWEB
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r cicd/requirements.txt
+
+      - name: Gate ReglasAgente
+        run: python3 cicd/scripts/lovable-sync/validate-agent-gate.py DoEventsWEB
+
+      - name: Manifiesto y contexto
+        run: |
+          python3 cicd/scripts/lovable-sync/analyze-lovable-diff.py lovable "__last_sync__" HEAD DoEventsWEB || true
+          cp lovable/lovable-change-manifest.json cicd/lovable-change-manifest.json
+          python3 cicd/scripts/lovable-sync/build-agent-context.py \
+            lovable DoEventsWEB cicd/lovable-change-manifest.json lovable/.ai/agent-sync-context.md
+        env:
+          CICD_DIR: ${{ github.workspace }}/cicd
+
+      - name: Agente Cursor — adaptar sin copia literal
+        env:
+          CICD_DIR: ${{ github.workspace }}/cicd
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          LOVABLE_DIR: ${{ github.workspace }}/lovable
+          WEB_DIR: ${{ github.workspace }}/DoEventsWEB
+          LOVABLE_SHA: ${{ needs.prepare.outputs.lovable_sha }}
+          WEB_STARTING_REF: develop
+          AGENT_WAIT: "true"
+          AGENT_AUTO_PR: "false"
+          AGENT_INCLUDE_BACK: ${{ (inputs.agent_mode == 'fullstack' || github.event.inputs.agent_mode == 'fullstack') && 'true' || 'false' }}
+          CURSOR_AGENT_MODEL: composer-2.5
+        run: python3 cicd/scripts/lovable-sync/run-port-agent-api.py
+
+      - name: Validar anti-mocks (post-agente)
+        if: always()
+        run: bash cicd/scripts/lovable-sync/validate-no-mocks.sh DoEventsWEB
+
+  deploy-qa:
+    needs: [prepare, adapt]
+    if: |
+      always() &&
+      needs.adapt.result == 'success' &&
+      (inputs.deploy_qa_after == 'true' || github.event.inputs.deploy_qa_after == 'true')
+    uses: ./.github/workflows/deploy-web-qa.yml
+    secrets: inherit

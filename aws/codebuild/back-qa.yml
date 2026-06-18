@@ -1,0 +1,17 @@
+# Deploy DoEventsBack login QA — CodeBuild
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - npm install -g serverless@3.38.0
+  build:
+    commands:
+      - |
+        set -euo pipefail
+        cd aws-lambda-login
+        npm install --omit=dev
+        sed -i '/^frameworkVersion:/d;/^org:/d' serverless.qa.yml || true
+        npx serverless deploy --config serverless.qa.yml --stage qa --region "${AWS_REGION:-us-east-2}"

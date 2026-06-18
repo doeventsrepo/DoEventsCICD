@@ -1,0 +1,55 @@
+{
+  "version": "1.0",
+  "project": "DoEvents",
+  "description": "Orquestacion CI/CD: Lovable → Cursor Agent → DoEventsWEB/Back → AWS QA",
+  "repositories": {
+    "cicd": "doeventsrepo/DoEventsCICD",
+    "design": "doeventsrepo/discover-joyful-feed",
+    "frontend": "doeventsrepo/DoEventsWEB",
+    "backend": "doeventsrepo/DoEventsBack",
+    "ia": "doeventsrepo/DoEventsIA"
+  },
+  "branches": {
+    "design": "main",
+    "integration": "develop",
+    "production": "main",
+    "aiFeaturePrefix": "feature/ai/",
+    "lovableFeaturePrefix": "feature/lovable/"
+  },
+  "paths": {
+    "lovableRules": "reglasActuacion",
+    "agentRules": "ReglasAgente",
+    "lovableUi": "src",
+    "webLovable": "packages/shell/src/lovable",
+    "webBridge": "packages/shell/src/lovable-bridge",
+    "cicdScripts": "scripts/lovable-sync",
+    "cicdPrompts": "prompts"
+  },
+  "aws": {
+    "region": "us-east-2",
+    "web": {
+      "domain": "qa.doeventsapp.com",
+      "bucket": "doevents-web-qa",
+      "cloudFrontDistributionId": "E3UV9NHXADGSAJ"
+    },
+    "api": {
+      "domain": "api-qa.doeventsapp.com"
+    }
+  },
+  "agent": {
+    "cursorApi": "https://api.cursor.com/v1/agents",
+    "defaultModel": "composer-2.5",
+    "modes": ["frontend-only", "fullstack"],
+    "defaultMode": "frontend-only",
+    "minReglasFrontBytes": 500,
+    "autoCreatePr": false,
+    "includeBackend": true,
+    "waitForCompletion": true
+  },
+  "pipeline": {
+    "requireHumanApprovalForProd": true,
+    "autoDeployQaOnDevelopMerge": false,
+    "validateMocks": true,
+    "validateSecrets": true
+  }
+}

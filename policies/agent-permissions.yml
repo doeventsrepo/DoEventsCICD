@@ -1,0 +1,58 @@
+# Politica del agente Cursor — alineada con Automatizacion.html seccion 19
+version: "1.0"
+project: DoEvents
+
+agent_permissions:
+  allow_modify:
+    - "packages/**"
+    - "config/**"
+    - "ReglasAgente/**"
+    - "reglasActuacion/**"
+    - "docs/changes/**"
+    - "tests/**"
+    - "package.json"
+    - "package-lock.json"
+    - "aws-lambda-*/**"
+    - "shared/**"
+    - "serverless*.yml"
+
+  deny_modify:
+    - "**/.env*"
+    - "**/credentials*"
+    - "**/secrets/**"
+    - "infra/prod/**"
+    - "scripts/delete-*.sh"
+    - "scripts/drop-*.sh"
+    - "terraform/prod/**"
+    - "**/node_modules/**"
+
+  require_human_approval:
+    - "pagos/**"
+    - "tickets/**"
+    - "orders/**"
+    - "auth/**"
+    - "iam/**"
+    - "checkout/**"
+    - "serverless.yml"
+
+  forbidden_actions:
+    - production_deploy
+    - force_push_main
+    - force_push_develop
+    - delete_dynamodb_tables
+    - modify_aws_secrets
+    - disable_authentication
+
+cursor:
+  max_files_per_run: 40
+  allowed_modes:
+    - frontend-only
+    - fullstack
+  default_mode: frontend-only
+
+repositories:
+  design: doeventsrepo/discover-joyful-feed
+  frontend: doeventsrepo/DoEventsWEB
+  backend: doeventsrepo/DoEventsBack
+  ia: doeventsrepo/DoEventsIA
+  cicd: doeventsrepo/DoEventsCICD

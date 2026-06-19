@@ -246,6 +246,7 @@ jobs:
         with:
           repository: ${{ env.DESIGN_REPO }}
           ref: ${{ needs.prepare.outputs.lovable_sha }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: lovable
           fetch-depth: 0
 

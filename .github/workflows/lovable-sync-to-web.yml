@@ -119,6 +119,7 @@ jobs:
         with:
           repository: ${{ env.DESIGN_REPO }}
           ref: ${{ inputs.lovable_ref || github.event.client_payload.ref || 'main' }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: lovable
           fetch-depth: 0
 

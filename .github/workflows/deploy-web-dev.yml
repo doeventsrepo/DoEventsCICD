@@ -57,6 +57,7 @@ jobs:
 
       - name: Build DEV (devaws)
         env:
+          VITE_DOEVENTS_ENV: devaws
           VITE_GOOGLE_MAPS_API_KEY: ${{ secrets.VITE_GOOGLE_MAPS_API_KEY }}
         run: npm ci && npm run build:devaws
 

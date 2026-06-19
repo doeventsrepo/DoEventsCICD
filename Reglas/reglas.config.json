@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "description": "Reglas del agente Cursor API Key para empalmar Lovable en DoEventsWEB",
+  "operativas": {
+    "reglamento": "Reglas/operativas/reglamento-cursor-api.md",
+    "promptEmpalme": "Reglas/operativas/prompt-empalme-web.md",
+    "promptFullstack": "Reglas/operativas/prompt-fullstack.md"
+  },
+  "artefactosWeb": {
+    "bootstrapTarget": "ReglasAgente",
+    "templatesDir": "Reglas/artefactos-web",
+    "files": [
+      "reglas-front.md",
+      "cambios-lovable.json",
+      "decision-log.md",
+      "impacto-backend.md"
+    ],
+    "minReglasFrontBytes": 500
+  },
+  "fuentesExternas": {
+    "lovableBusinessRules": "reglasActuacion",
+    "lovableBusinessRulesRepo": "doeventsrepo/discover-joyful-feed",
+    "note": "reglasActuacion vive en el repo diseño; Reglas/ es la fuente CICD para el agente"
+  },
+  "gates": {
+    "forbidLiteralCopy": true,
+    "forbidLovableMocks": true,
+    "buildCommand": "npm run build:devaws",
+    "protectedBranches": ["main", "develop", "release", "release/*"],
+    "outputBranchPrefix": "feature/lovable/adapt-"
+  }
+}

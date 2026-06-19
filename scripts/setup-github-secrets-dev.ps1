@@ -3,6 +3,8 @@
 param(
   [string]$Repo = "doeventsrepo/DoEventsCICD",
   [string]$EnvName = "dev",
+  [ValidateSet('envDevelop', 'envRelease', 'envMain')]
+  [string]$EnvConfig = "envDevelop",
   [switch]$SkipAwsFromProfile,
   [switch]$DryRun
 )
@@ -33,13 +35,27 @@ function Set-GhSecret {
 
 Require-Gh
 
-Write-Host "=== Crear environment '$EnvName' si no existe ===" -ForegroundColor Cyan
-if (-not $DryRun) {
-  gh api -X PUT "repos/$Repo/environments/$EnvName" -f wait_timer=0 2>$null | Out-Null
+$envConfigRoot = Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "envConfig"
+$envConfigFile = Join-Path $envConfigRoot "$EnvConfig\environment.json"
+$envCfg = $null
+if (Test-Path $envConfigFile) {
+  $envCfg = Get-Content $envConfigFile -Raw | ConvertFrom-Json
+  if ($envCfg.cicd.githubEnvironment) { $EnvName = $envCfg.cicd.githubEnvironment }
+  Write-Host "Config: $envConfigFile -> GitHub environment '$EnvName'" -ForegroundColor DarkGray
 }
 
-# Valores conocidos / desde env local
-$cfDev = if ($env:CLOUDFRONT_DISTRIBUTION_ID_DEV) { $env:CLOUDFRONT_DISTRIBUTION_ID_DEV } else { "E1AIDTCT83PAW5" }
+Write-Host "=== Crear environment '$EnvName' si no existe ===" -ForegroundColor Cyan
+if (-not $DryRun) {
+  '{}' | gh api -X PUT "repos/$Repo/environments/$EnvName" --input - 2>$null | Out-Null
+}
+
+# Valores desde envConfig, env local o defaults
+$cfDev = $env:CLOUDFRONT_DISTRIBUTION_ID_DEV
+if (-not $cfDev -and $envCfg) { $cfDev = $envCfg.web.cloudFrontDistributionId }
+if (-not $cfDev) { $cfDev = "E1AIDTCT83PAW5" }
+$s3Bucket = $env:S3_BUCKET_DEV
+if (-not $s3Bucket -and $envCfg) { $s3Bucket = $envCfg.web.bucket }
+if (-not $s3Bucket) { $s3Bucket = "doevents-web-dev" }
 $mapsKey = $env:VITE_GOOGLE_MAPS_API_KEY
 if (-not $mapsKey -and (Test-Path "c:\DoEvents\AplicacionWEB\DoEventsWEB\.env.devaws")) {
   $line = Get-Content "c:\DoEvents\AplicacionWEB\DoEventsWEB\.env.devaws" | Where-Object { $_ -match '^VITE_GOOGLE_MAPS_API_KEY=' } | Select-Object -First 1
@@ -77,7 +93,7 @@ Set-GhSecret -Name "AWS_ACCESS_KEY_ID_DEV" -Value $awsKeyId -Env
 Set-GhSecret -Name "AWS_SECRET_ACCESS_KEY_DEV" -Value $awsSecret -Env
 Set-GhSecret -Name "CLOUDFRONT_DISTRIBUTION_ID_DEV" -Value $cfDev -Env
 Set-GhSecret -Name "VITE_GOOGLE_MAPS_API_KEY" -Value $mapsKey -Env
-Set-GhSecret -Name "S3_BUCKET_DEV" -Value "doevents-web-dev" -Env
+Set-GhSecret -Name "S3_BUCKET_DEV" -Value $s3Bucket -Env
 
 Write-Host "`n=== Verificacion ===" -ForegroundColor Cyan
 gh secret list --repo $Repo

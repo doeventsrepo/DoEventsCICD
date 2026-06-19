@@ -73,6 +73,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
           AWS_REGION: sa-east-1
           CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID_DEV }}
+          WEB_REF: ${{ inputs.web_ref || 'feature/cicd/dev-automation' }}
         run: bash -c '
           set -euo pipefail
           BUCKET="${S3_BUCKET_DEV:-doevents-web-dev}"
@@ -88,5 +89,5 @@ jobs:
           if [ -n "$CF" ]; then
             aws cloudfront create-invalidation --distribution-id "$CF" --paths "/*"
           fi
-          echo "Deploy DEV desde rama ${{ inputs.web_ref || '"'"'feature/cicd/dev-automation'"'"' }}: https://dev.doeventsapp.com"
+          echo "Deploy DEV desde rama ${WEB_REF}: https://dev.doeventsapp.com"
         '

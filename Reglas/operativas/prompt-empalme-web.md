@@ -1,6 +1,6 @@
 # Agente Cursor: adaptar Lovable → DoEventsWEB
 
-> Orquestado por **DoEventsCICD**. Reglamento completo: `prompts/REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md`
+> Orquestado por **DoEventsCICD**. Reglamento completo: `Reglas/operativas/reglamento-cursor-api.md`
 
 ## BLOQUEO OBLIGATORIO
 
@@ -27,7 +27,7 @@ Diseño de Lovable sí. Mocks de Lovable no. Backend real siempre.
 
 ```text
 1. Leer ReglasAgente/reglas-front.md (completo)
-2. Leer REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md
+2. Leer `Reglas/operativas/reglamento-cursor-api.md`
 3. Leer manifiesto + agent-sync-context.md + reglas YAML Lovable (referencia)
 4. Clasificar: VISUAL | FRONTEND_LOGIC | BACKEND_REQUIRED | RISKY
 5. Adaptar en componentes EXISTENTES (pages/, lovable-bridge/) — **empalme**, no copia literal

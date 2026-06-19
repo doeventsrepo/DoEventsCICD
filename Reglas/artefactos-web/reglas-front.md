@@ -21,7 +21,7 @@ Lovable diseña. DoEventsWEB interpreta. DoEventsBack gobierna. El agente adapta
 4. Reutilizar `lovable-bridge/` y `@doevents/shared`.
 5. Implementar solo lo necesario.
 6. Prohibir mocks en runtime.
-7. Ejecutar `npm run build:qa`.
+7. Ejecutar `npm run build:devaws`.
 8. Actualizar `ReglasAgente/` (4 archivos).
 9. Documentar en `decision-log.md`.
 
@@ -68,7 +68,7 @@ Solo modificar en rama separada si BACKEND_REQUIRED. Nunca deploy prod automáti
 
 ## 13. Validaciones de pipeline
 
-- `npm run build:qa` exitoso
+- `npm run build:devaws` exitoso
 - Sin mocks nuevos en `packages/shell/src/pages`
 - Sin secretos en commits
 - Artefactos `ReglasAgente/` actualizados
@@ -83,4 +83,4 @@ Si no hay certeza, clasificar REQUIRES_REVIEW, no inventar mocks, no copiar Lova
 
 ---
 
-Reglamento completo: `DoEventsCICD/prompts/REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md`
+Reglamento completo: `DoEventsCICD/Reglas/operativas/reglamento-cursor-api.md`

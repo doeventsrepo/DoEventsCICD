@@ -7,8 +7,14 @@ import os
 import sys
 from pathlib import Path
 
-MIN_RULES_BYTES = 500
+_SCRIPTS = Path(__file__).resolve().parents[2] / "scripts" / "lovable-sync"
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+
+from reglas_paths import min_reglas_front_bytes, operativas_paths
+
 AGENT_DIR = "ReglasAgente"
+MIN_RULES_BYTES = min_reglas_front_bytes()
 
 
 def read_optional(path: Path) -> str:
@@ -30,12 +36,12 @@ def main() -> int:
     if not ok_rules:
         errors.append(f"reglas-front.md insuficiente ({len(rules_content)} bytes)")
 
-    for name in ("port-lovable-to-web.md", "REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md", "lovable-fullstack-agent.md"):
-        p = cicd_dir / "prompts" / name
-        ok = p.exists() and p.stat().st_size > 100
-        checks.append({"check": f"prompt:{name}", "ok": ok, "bytes": p.stat().st_size if p.exists() else 0})
+    ops = operativas_paths(cicd_dir)
+    for key, path in ops.items():
+        ok = path.exists() and path.stat().st_size > 100
+        checks.append({"check": f"reglas:{key}", "ok": ok, "bytes": path.stat().st_size if path.exists() else 0})
         if not ok:
-            errors.append(f"Falta prompt {name}")
+            errors.append(f"Falta Reglas operativa {key}: {path.name}")
 
     manifest_path = lovable_dir / "lovable-change-manifest.json"
     if not manifest_path.exists():
@@ -49,8 +55,8 @@ def main() -> int:
         checks.append({"check": "manifest_json", "ok": False})
         errors.append("Manifiesto JSON invalido")
 
-    instructions = read_optional(cicd_dir / "prompts" / "port-lovable-to-web.md")
-    reglas_doc = read_optional(cicd_dir / "prompts" / "REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md")
+    instructions = read_optional(ops["promptEmpalme"])
+    reglas_doc = read_optional(ops["reglamento"])
     context = read_optional(lovable_dir / ".ai" / "agent-sync-context.md")
 
     payload_text_len = len(instructions) + len(reglas_doc) + len(rules_content) + len(context) + len(manifest_raw)
@@ -80,7 +86,6 @@ def main() -> int:
     (out_dir / "payload-preview.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
     (out_dir / "checks.json").write_text(json.dumps(checks, indent=2), encoding="utf-8")
 
-    # Preview primeras lineas del prompt compuesto
     preview = f"{instructions[:800]}\n...\n{reglas_doc[:400]}\n...\n"
     (out_dir / "prompt-preview.txt").write_text(preview, encoding="utf-8")
 

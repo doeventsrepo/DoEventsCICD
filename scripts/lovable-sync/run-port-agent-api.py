@@ -9,12 +9,17 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
+
+from reglas_paths import min_reglas_front_bytes, operativas_paths
+
+from reglas_paths import min_reglas_front_bytes, operativas_paths
 
 API = "https://api.cursor.com/v1/agents"
 POLL_INTERVAL = 15
 POLL_TIMEOUT = 900
 AGENT_DIR = "ReglasAgente"
-MIN_RULES_BYTES = 500
+MIN_RULES_BYTES = min_reglas_front_bytes()
 
 
 def api(method: str, path: str, body: dict | None = None) -> dict:
@@ -82,10 +87,9 @@ def main() -> int:
 
     cicd_dir = os.environ.get("CICD_DIR", "")
     if cicd_dir:
-        instructions = read_optional(os.path.join(cicd_dir, "prompts", "port-lovable-to-web.md"))
-        reglas_doc = read_optional(
-            os.path.join(cicd_dir, "prompts", "REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md")
-        )
+        ops = operativas_paths(Path(cicd_dir))
+        instructions = read_optional(str(ops["promptEmpalme"]))
+        reglas_doc = read_optional(str(ops["reglamento"]))
     else:
         instructions = read_optional(os.path.join(lovable_dir, ".ai", "prompts", "port-lovable-to-web.md"))
         reglas_doc = ""

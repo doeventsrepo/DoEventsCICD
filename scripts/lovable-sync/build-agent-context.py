@@ -137,7 +137,7 @@ def main() -> int:
             "| Shared API | `packages/shared/src/` | Clientes HTTP, tipos, auth |",
             "| Reglas agente (DoEventsWEB) | `ReglasAgente/` | Artefactos obligatorios del agente Cursor |",
             "| Reglas negocio YAML (Lovable) | `reglasActuacion/` en discover-joyful-feed | Fuente de reglas funcionales |",
-            "| Orquestacion CI/CD | repo `DoEventsCICD` | Scripts, prompts, workflows |",
+            "| Orquestacion CI/CD | repo `DoEventsCICD` | Scripts, `Reglas/`, workflows |",
             "",
             "- Imports Lovable `@/` -> alias Vite `@` y `@lovable` apuntan a `src/lovable/`.",
             "- **Responsive**: diseno mobile-first (`max-w-lg` en layout); validar en viewport movil y desktop.",

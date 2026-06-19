@@ -27,8 +27,10 @@
     "lovableUi": "src",
     "webLovable": "packages/shell/src/lovable",
     "webBridge": "packages/shell/src/lovable-bridge",
-    "cicdScripts": "scripts/lovable-sync",
-    "cicdPrompts": "prompts"
+    "cicdReglas": "Reglas",
+    "cicdReglasOperativas": "Reglas/operativas",
+    "cicdReglasArtefactos": "Reglas/artefactos-web",
+    "cicdScripts": "scripts/lovable-sync"
   },
   "awsDev": {
     "region": "sa-east-1",

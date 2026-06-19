@@ -135,7 +135,7 @@ jobs:
           for f in reglas-front.md cambios-lovable.json decision-log.md impacto-backend.md; do
             if [ ! -f "DoEventsWEB/ReglasAgente/$f" ]; then
               mkdir -p DoEventsWEB/ReglasAgente
-              cp "cicd/templates/ReglasAgente/$f" "DoEventsWEB/ReglasAgente/$f"
+              cp "cicd/Reglas/artefactos-web/$f" "DoEventsWEB/ReglasAgente/$f"
             fi
           done
           if [ ! -f DoEventsWEB/.lovable-port-map.json ]; then

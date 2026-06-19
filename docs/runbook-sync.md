@@ -43,7 +43,7 @@ discover-joyful-feed (main)
 
 El agente debe:
 
-- Leer `ReglasAgente/reglas-front.md` y `REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md`
+- Leer `ReglasAgente/reglas-front.md` y `Reglas/operativas/reglamento-cursor-api.md`
 - Integrar cambios en componentes existentes y `lovable-bridge/*`
 - Mantener `@doevents/shared` y APIs `api-dev.doeventsapp.com`
 - **No** usar mockData de Lovable en runtime
@@ -76,7 +76,7 @@ python3 simulation/scripts/simulate-agent-dry-run.py
 | Error | Solución |
 |-------|----------|
 | Rama prohibida | Usar solo `feature/*` |
-| Gate ReglasAgente | Bootstrap `templates/ReglasAgente/` |
+| Gate ReglasAgente | Bootstrap `Reglas/artefactos-web/` |
 | Cursor API 401 | Rotar `CURSOR_API_KEY` |
 | Mocks detectados | Revisar salida `validate-no-mocks.sh` |
 | Build devaws falla | Revisar rama agente antes de deploy |

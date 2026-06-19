@@ -19,8 +19,8 @@ if ((Test-Path $DestRoot) -and -not $Force) {
     if ($LASTEXITCODE -ge 8) { throw "robocopy fallo con codigo $LASTEXITCODE" }
 }
 
-# Bootstrap ReglasAgente desde plantillas CICD (solo en sandbox)
-$CicdTemplates = Resolve-Path "..\templates\ReglasAgente"
+# Bootstrap ReglasAgente desde Reglas/artefactos-web (solo en sandbox)
+$CicdTemplates = Resolve-Path "..\Reglas\artefactos-web"
 $AgentDir = Join-Path $DestRoot "ReglasAgente"
 New-Item -ItemType Directory -Force -Path $AgentDir, (Join-Path $DestRoot "docs\changes") | Out-Null
 Get-ChildItem $CicdTemplates | ForEach-Object {
@@ -31,4 +31,4 @@ Copy-Item (Resolve-Path "..\templates\.lovable-port-map.json") (Join-Path $DestR
 Copy-Item (Join-Path $AgentDir "impacto-backend.md") (Join-Path $DestRoot "docs\changes\lovable-backend-impact.md") -Force
 
 Write-Host "Sandbox listo: $DestRoot"
-Write-Host "ReglasAgente bootstrap desde templates (aislado del WEB productivo)."
+Write-Host "ReglasAgente bootstrap desde Reglas/artefactos-web (aislado del WEB productivo)."

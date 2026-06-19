@@ -11,7 +11,7 @@ Aplicar cambios derivados de Lovable (`discover-joyful-feed`) y `reglasActuacion
 - Diff del Pull Request o manifiesto `lovable-change-manifest.json`
 - Archivos modificados en `reglasActuacion/`
 - `ReglasAgente/reglas-front.md` en DoEventsWEB
-- `prompts/REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md` en DoEventsCICD
+- `Reglas/operativas/reglamento-cursor-api.md` en DoEventsCICD
 - Código frontend y contratos API existentes
 
 # Instrucciones
@@ -23,7 +23,7 @@ Aplicar cambios derivados de Lovable (`discover-joyful-feed`) y `reglasActuacion
 5. Si el cambio es visual o UX, modifica solo frontend.
 6. Si la regla afecta integridad, seguridad, pagos, tickets, reservas u órdenes, exige validación backend y marca RISKY.
 7. Crea o actualiza pruebas cuando aplique.
-8. Ejecuta lint, test y `npm run build:qa`.
+8. Ejecuta lint, test y `npm run build:devaws`.
 9. Documenta cambios en `ReglasAgente/decision-log.md` y `cambios-lovable.json`.
 
 # Restricciones

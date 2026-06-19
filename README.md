@@ -2,8 +2,8 @@
 
 Repositorio central de **orquestación CI/CD** para el ecosistema Do.Events: sincronización **Lovable → Cursor Agent (empalme) → DoEventsWEB/Back → AWS DEV (sa-east-1)**. QA solo manual.
 
-**Runbook:** `docs/runbook-sync.md`  
-**Reglamento del agente:** `prompts/REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md`
+**Documentación:** [Arquitectura](docs/ARQUITECTURA.md) · [Manual configuración](docs/MANUAL_CONFIGURACION.md) · [Diagramas y especificación](docs/DIAGRAMAS_SECUENCIA_ESPECIFICACION.md) · [Runbook sync](docs/runbook-sync.md)  
+**Reglamento del agente:** `Reglas/operativas/reglamento-cursor-api.md`
 
 ---
 
@@ -64,7 +64,7 @@ flowchart LR
     subgraph CICD["DoEventsCICD"]
         W[lovable-sync-to-web.yml]
         S[scripts/lovable-sync/]
-        P[prompts/]
+        R[Reglas/]
     end
 
     subgraph Agent["Cursor API"]
@@ -84,8 +84,8 @@ flowchart LR
     L --> W
     R --> W
     W --> S
-    S --> P
-    P --> CA
+    S --> R
+    R --> CA
     CA --> RB
     CA --> RA
     RB --> S3
@@ -104,13 +104,15 @@ Lovable main → DoEventsCICD sync → feature/lovable/adapt-{sha} → PR → de
 ```text
 DoEventsCICD/
 ├── .github/workflows/          # Pipelines reutilizables
+├── Reglas/                     # Reglas agente Cursor API (operativas + artefactos WEB)
+│   ├── operativas/             # Reglamento y prompts empalme
+│   ├── artefactos-web/         # Bootstrap → DoEventsWEB/ReglasAgente/
+│   └── reglas.config.json
 ├── scripts/
 │   ├── lovable-sync/           # Python: diff, contexto, agente, validación
 │   └── deploy/                 # Bash: deploy WEB QA
-├── prompts/                    # Prompts Cursor + reglamento operativo
 ├── policies/                   # Permisos del agente (.ai-policy)
 ├── templates/
-│   ├── ReglasAgente/           # Bootstrap DoEventsWEB
 │   ├── .lovable-port-map.json
 │   └── workflows/              # Trigger desde repo diseño
 ├── aws/codebuild/              # Buildspecs AWS CodePipeline
@@ -166,20 +168,21 @@ GitHub → **DoEventsCICD** → Actions → **Lovable Sync to WEB**:
 
 ### Reglamento
 
-`prompts/REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md` define:
+`Reglas/operativas/reglamento-cursor-api.md` define:
 
 - Clasificación: `VISUAL`, `FRONTEND_LOGIC`, `BACKEND_REQUIRED`, `RISKY`
 - Prohibición absoluta de mocks
 - Artefactos obligatorios: `cambios-lovable.json`, `reglas-front.md`, `impacto-backend.md`, `decision-log.md`
 - No deploy automático de backend productivo
 
-### Prompts
+### Reglas y prompts
 
 | Archivo | Uso |
 |---------|-----|
-| `port-lovable-to-web.md` | Prompt corto operativo |
-| `lovable-fullstack-agent.md` | Prompt fullstack (Automatizacion §20) |
-| `REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md` | Reglamento completo |
+| `Reglas/operativas/prompt-empalme-web.md` | Prompt corto operativo (empalme DEV) |
+| `Reglas/operativas/prompt-fullstack.md` | Modo fullstack (WEB + Back) |
+| `Reglas/operativas/reglamento-cursor-api.md` | Reglamento completo (15+ secciones) |
+| `Reglas/artefactos-web/*` | Plantillas copiadas a `DoEventsWEB/ReglasAgente/` |
 
 ### API
 

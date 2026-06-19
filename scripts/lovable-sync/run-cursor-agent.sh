@@ -14,8 +14,8 @@ if [ -z "${CURSOR_API_KEY:-}" ]; then
   exit 1
 fi
 
-PROMPT_FILE="${CICD_DIR}/prompts/lovable-fullstack-agent.md"
-RULES_FILE="${CICD_DIR}/prompts/REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md"
+PROMPT_FILE="${CICD_DIR}/Reglas/operativas/prompt-fullstack.md"
+RULES_FILE="${CICD_DIR}/Reglas/operativas/reglamento-cursor-api.md"
 
 if ! command -v cursor-agent >/dev/null 2>&1; then
   echo "cursor-agent no instalado; usando run-port-agent-api.py (Cloud Agents API)"

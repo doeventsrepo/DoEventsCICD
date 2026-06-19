@@ -25,11 +25,11 @@ jobs:
           assert c['pipeline']['autoDeployDevOnLovableSync'] is True
           print('OK: pipeline DEV-only')
           "
-      - run: python3 scripts/lovable-sync/validate-rules.py templates/ReglasAgente --strict || true
+      - run: python3 scripts/lovable-sync/validate-reglas-cicd.py .
       - name: Dry-run agente (sin API)
         run: |
           mkdir -p /tmp/web/ReglasAgente
-          cp templates/ReglasAgente/reglas-front.md /tmp/web/ReglasAgente/
+          cp Reglas/artefactos-web/reglas-front.md /tmp/web/ReglasAgente/
           export CICD_DIR=$PWD
           export LOVABLE_DIR=$PWD/simulation/workspaces/lovable-root-extracted/lovable-run-1781776089 2>/dev/null || export LOVABLE_DIR=$PWD
           export WEB_DIR=/tmp/web
@@ -45,4 +45,4 @@ jobs:
           grep -q 'feature/cicd/dev-automation' .github/workflows/lovable-sync-to-web.yml
           grep -q 'build:devaws' .github/workflows/deploy-web-dev.yml
           echo "OK: pipeline automatico apunta solo a DEV (feature/*, sa-east-1)"
-      - run: test -f cicd.config.json && test -f prompts/REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md
+      - run: test -f cicd.config.json && test -f Reglas/reglas.config.json

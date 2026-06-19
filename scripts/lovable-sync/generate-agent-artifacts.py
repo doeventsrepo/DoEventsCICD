@@ -16,14 +16,19 @@ def utc_now() -> str:
 
 
 def load_json(path: Path) -> dict:
-    if path.exists():
-        return json.loads(path.read_text(encoding="utf-8"))
-    return {
+    default = {
         "version": "1.0",
         "description": "",
         "policy": {"noLiteralCopy": True, "noLovableMocksInRuntime": True},
         "runs": [],
     }
+    if not path.exists():
+        return default
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        print(f"AVISO: {path} JSON inválido ({exc}) — reiniciando store", file=sys.stderr)
+        return default
 
 
 def classify_from_manifest(manifest: dict) -> list[str]:

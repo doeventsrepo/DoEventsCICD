@@ -189,9 +189,11 @@ jobs:
         run: |
           git config user.name "doevents-cicd-bot"
           git config user.email "cicd@doeventsapp.com"
-          git add ReglasAgente/ docs/changes/lovable-backend-impact.md .lovable-port-map.json 2>/dev/null || true
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "ReglasAgente sin cambios"
+          mkdir -p docs/changes
+          git add ReglasAgente/ .lovable-port-map.json
+          git add docs/changes/lovable-backend-impact.md 2>/dev/null || true
+          if [ -z "$(git diff --cached --name-only)" ]; then
+            echo "ReglasAgente sin cambios para commit"
             exit 0
           fi
           git commit -m "chore(docs): preparar ReglasAgente para empalme Lovable→DEV [cicd:${{ github.run_id }}]"

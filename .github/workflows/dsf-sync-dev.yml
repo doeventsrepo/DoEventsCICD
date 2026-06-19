@@ -260,7 +260,8 @@ jobs:
 
       - name: Gate G3 — Anti-mocks
         if: steps.agent_run.outcome == 'success'
-        run: bash cicd/scripts/lovable-sync/validate-no-mocks.sh DoEventsWEB || echo "AVISO: anti-mocks — el agente debe corregir en siguiente batch"
+        run: |
+          bash cicd/scripts/lovable-sync/validate-no-mocks.sh DoEventsWEB || echo "AVISO: anti-mocks - el agente debe corregir en siguiente batch"
 
       - name: Gate G1 — Build DEV
         if: steps.agent_run.outcome == 'success'

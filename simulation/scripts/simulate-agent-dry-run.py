@@ -77,7 +77,7 @@ def main() -> int:
         "repos": repos,
         "target": {
             "autoCreatePr": False,
-            "branchName": f"feature/lovable/adapt-{str(lovable_sha)[:8]}",
+            "branchName": "feature/cicd/dev-automation",
         },
     }
 

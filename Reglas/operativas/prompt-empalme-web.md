@@ -36,7 +36,7 @@ Diseño de Lovable sí. Mocks de Lovable no. Backend real siempre.
 8. npm run build:devaws
 9. Re-comparar diseño — objetivo ≥98% similitud
 10. Actualizar ReglasAgente/ (4 archivos) + Reports/
-11. Commits en rama feature/lovable/adapt-{sha} — NO push a develop/main/release
+11. Commits en rama **feature/cicd/dev-automation** (unica rama de automatizacion) — NO push a develop/main/release ni ramas feature/lovable/adapt-*
 ```
 
 ## Regla de comparación de diseño (obligatoria)

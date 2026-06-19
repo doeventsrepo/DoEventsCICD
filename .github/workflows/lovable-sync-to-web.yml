@@ -93,6 +93,10 @@ jobs:
             echo "ERROR: la automatizacion solo permite ramas feature/* (recibido: $WEB_BRANCH)" >&2
             exit 1
           fi
+          if [ "$branch" != "feature/cicd/dev-automation" ]; then
+            echo "ERROR: toda la automatizacion debe usar feature/cicd/dev-automation (recibido: $WEB_BRANCH)" >&2
+            exit 1
+          fi
           echo "Rama WEB valida: $WEB_BRANCH"
 
   prepare:
@@ -262,27 +266,12 @@ jobs:
           python-version: '3.11'
       - run: pip install -r cicd/requirements.txt
 
-      - name: Meta rama agente
+      - name: Rama unica de automatizacion
         id: agent_meta
         run: |
-          SHA="${{ needs.prepare.outputs.lovable_sha }}"
-          BRANCH="feature/lovable/adapt-${SHA:0:8}"
+          BRANCH="${{ needs.prepare.outputs.web_branch }}"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
-
-      - name: Crear rama agente en DoEventsWEB
-        env:
-          WEB_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
-        run: |
-          set -euo pipefail
-          BRANCH="${{ steps.agent_meta.outputs.branch }}"
-          BASE="${{ needs.prepare.outputs.web_branch }}"
-          rm -rf /tmp/web-branch-init
-          git clone --depth 1 --branch "$BASE" \
-            "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git" \
-            /tmp/web-branch-init
-          cd /tmp/web-branch-init
-          git checkout -b "$BRANCH"
-          git push "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git" "$BRANCH"
+          echo "Empalme y deploy en rama unica: $BRANCH"
 
       - name: Gate ReglasAgente
         run: python3 cicd/scripts/lovable-sync/validate-agent-gate.py DoEventsWEB

@@ -18,8 +18,8 @@
     "cicdSelf": "main",
     "aiFeaturePrefix": "feature/ai/",
     "lovableFeaturePrefix": "feature/lovable/",
-    "agentOutputPrefix": "feature/lovable/adapt-",
-    "note": "Automatizacion SOLO en ramas feature/*. Prohibido push/checkout de develop, release o main en WEB/Back. Merge feature→develop es MANUAL por ingeniero; CICD nunca escribe en develop de DoEventsWEB."
+    "agentOutputBranch": "feature/cicd/dev-automation",
+    "note": "Automatizacion SOLO en feature/cicd/dev-automation. No crear ramas feature/lovable/adapt-*. Prohibido push/checkout de develop, release o main en WEB/Back."
   },
   "paths": {
     "lovableRules": "reglasActuacion",

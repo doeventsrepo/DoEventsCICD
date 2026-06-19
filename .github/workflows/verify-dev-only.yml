@@ -38,6 +38,8 @@ jobs:
           ! grep -qE 'build:qa|api-qa|qa\.doeventsapp' "$SYNC" "$DEV"
           grep -q 'PROTECTED_BRANCHES: main,develop,release' "$SYNC"
           grep -q 'feature/cicd/dev-automation' "$SYNC"
+          ! grep -q 'feature/lovable/adapt-' "$SYNC"
+          grep -q 'agentOutputBranch' cicd.config.json
           grep -q 'environment: dev' "$DEV"
           grep -q 'sa-east-1' "$DEV"
           grep -q 'build:devaws' "$DEV"

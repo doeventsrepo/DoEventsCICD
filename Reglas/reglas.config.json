@@ -34,6 +34,6 @@
     "forbidLovableMocks": true,
     "buildCommand": "npm run build:devaws",
     "protectedBranches": ["main", "develop", "release", "release/*"],
-    "outputBranchPrefix": "feature/lovable/adapt-"
+    "outputBranch": "feature/cicd/dev-automation"
   }
 }

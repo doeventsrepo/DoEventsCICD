@@ -120,7 +120,9 @@ def main() -> int:
     if not context and cicd_dir:
         context = read_optional(os.path.join(cicd_dir, ".ai", "agent-sync-context.md"))
 
-    branch = os.environ.get("AGENT_BRANCH", f"feature/lovable/adapt-{lovable_sha[:8]}")
+    branch = os.environ.get("AGENT_BRANCH") or os.environ.get(
+        "WEB_STARTING_REF", "feature/cicd/dev-automation"
+    )
     web_ref = os.environ.get("WEB_STARTING_REF", "feature/cicd/dev-automation")
     back_ref = os.environ.get("BACK_STARTING_REF", "feature/cicd/dev-automation")
 
@@ -158,7 +160,7 @@ Has leido `ReglasAgente/reglas-front.md`. Cumple TODAS las secciones (1-15).
 6. `npm run build:devaws` exitoso
 7. Re-comparar diseño y registrar % similitud antes/después en decision-log.md
 8. Riesgos pendientes en decision-log.md
-9. Push a rama `{branch}` (feature/lovable/*)
+9. Push a rama `{branch}` (feature/cicd/dev-automation — rama unica de automatizacion)
 
 ## Reglas completas
 {rules_content}

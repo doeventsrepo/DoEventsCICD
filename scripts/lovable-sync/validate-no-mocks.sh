@@ -34,6 +34,7 @@ scan_dir "${SHELL_SRC}/lovable-bridge" "lovable-bridge/" "" || fail=1
 scan_dir "$SHARED_SRC/api" "shared/api/" "" || fail=1
 
 # Prohibir import de valores mock; permitir import type (solo tipos, sin runtime)
+PAGES="${SHELL_SRC}/pages"
 if [ -d "$PAGES" ]; then
   value_import_hits=$(grep -RInE "import\s+[^t].*mock|import\s+\{[^}]*\}\s+from\s+['\"].*mock|from\s+['\"]@lovable/data/mock" "$PAGES" 2>/dev/null \
     | grep -vE '\.test\.|__tests__|import\s+type\s' || true)

@@ -334,7 +334,8 @@ jobs:
           python3 cicd/scripts/lovable-sync/generate-design-report.py \
             cicd/design-comparison-post.json \
             "cicd/Reports/${DATE}-design-comparison-post-${{ github.run_id }}.md" \
-            "${{ github.run_id }}-post"
+            "${{ github.run_id }}-post" \
+            --before cicd/design-comparison.json
 
       - name: Subir artefacto comparacion post-agente
         if: steps.agent_run.outcome == 'success'

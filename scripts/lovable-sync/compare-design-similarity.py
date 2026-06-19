@@ -8,6 +8,8 @@ import re
 import sys
 from pathlib import Path
 
+from design_validation_hints import attach_validation_to_comparison
+
 DESIGN_EXTENSIONS = {".tsx", ".ts", ".jsx", ".js", ".css"}
 SKIP_LOVABLE_PREFIXES = (
     "src/components/ui/",
@@ -183,6 +185,8 @@ def main() -> int:
             "missingInWeb": len(missing_in_web),
         },
     }
+
+    report = attach_validation_to_comparison(report)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")

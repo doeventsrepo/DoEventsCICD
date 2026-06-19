@@ -235,7 +235,7 @@ jobs:
       && needs.prepare.outputs.requires_agent == 'true'
     runs-on: ubuntu-latest
     outputs:
-      agent_branch: ${{ steps.agent_meta.outputs.branch }}
+      agent_branch: ${{ steps.agent_run.outputs.agent_pushed_branch || steps.agent_meta.outputs.branch }}
       similarity_percent_after: ${{ steps.design_post.outputs.similarity_percent }}
     steps:
       - uses: actions/checkout@v4
@@ -268,6 +268,21 @@ jobs:
           SHA="${{ needs.prepare.outputs.lovable_sha }}"
           BRANCH="feature/lovable/adapt-${SHA:0:8}"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Crear rama agente en DoEventsWEB
+        env:
+          WEB_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
+        run: |
+          set -euo pipefail
+          BRANCH="${{ steps.agent_meta.outputs.branch }}"
+          BASE="${{ needs.prepare.outputs.web_branch }}"
+          rm -rf /tmp/web-branch-init
+          git clone --depth 1 --branch "$BASE" \
+            "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git" \
+            /tmp/web-branch-init
+          cd /tmp/web-branch-init
+          git checkout -b "$BRANCH"
+          git push "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git" "$BRANCH"
 
       - name: Gate ReglasAgente
         run: python3 cicd/scripts/lovable-sync/validate-agent-gate.py DoEventsWEB
@@ -311,8 +326,9 @@ jobs:
       - name: Validar build DEV en rama agente
         if: steps.agent_run.outcome == 'success'
         run: |
+          AGENT_BRANCH="${{ steps.agent_run.outputs.agent_pushed_branch || steps.agent_meta.outputs.branch }}"
           rm -rf DoEventsWEB-verify
-          git clone --depth 1 --branch "${{ steps.agent_meta.outputs.branch }}" \
+          git clone --depth 1 --branch "$AGENT_BRANCH" \
             "https://x-access-token:${{ secrets.DOEVENTS_WEB_PAT }}@github.com/${{ env.WEB_REPO }}.git" \
             DoEventsWEB-verify
           cd DoEventsWEB-verify
@@ -323,8 +339,9 @@ jobs:
         id: design_post
         if: steps.agent_run.outcome == 'success'
         run: |
+          AGENT_BRANCH="${{ steps.agent_run.outputs.agent_pushed_branch || steps.agent_meta.outputs.branch }}"
           rm -rf DoEventsWEB-post
-          git clone --depth 1 --branch "${{ steps.agent_meta.outputs.branch }}" \
+          git clone --depth 1 --branch "$AGENT_BRANCH" \
             "https://x-access-token:${{ secrets.DOEVENTS_WEB_PAT }}@github.com/${{ env.WEB_REPO }}.git" \
             DoEventsWEB-post
           python3 cicd/scripts/lovable-sync/compare-design-similarity.py \

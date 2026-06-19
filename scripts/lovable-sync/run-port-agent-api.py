@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Invoca Cursor Cloud Agents API — adaptacion obligatoria con ReglasAgente/."""
+"""Invoca Cursor Cloud Agents API v1 — adaptacion obligatoria con ReglasAgente/."""
 from __future__ import annotations
 
 import base64
@@ -14,15 +14,18 @@ from pathlib import Path
 from reglas_paths import min_reglas_front_bytes, operativas_paths
 
 API = "https://api.cursor.com/v1/agents"
-POLL_INTERVAL = 15
-POLL_TIMEOUT = 900
+POLL_INTERVAL = 20
+POLL_TIMEOUT = 1800
 AGENT_DIR = "ReglasAgente"
+WEB_REPO_HOST = "github.com/doeventsrepo/DoEventsWEB"
 MIN_RULES_BYTES = min_reglas_front_bytes()
+
+TERMINAL_RUN = frozenset({"FINISHED", "ERROR", "CANCELLED", "CANCELED", "EXPIRED"})
 
 
 def api(method: str, path: str, body: dict | None = None) -> dict:
     key = os.environ["CURSOR_API_KEY"]
-    url = f"{API}{path}"
+    url = f"{API}{path}" if path else API
     data = json.dumps(body).encode() if body is not None else None
     basic = base64.b64encode(f"{key}:".encode()).decode()
     req = urllib.request.Request(
@@ -36,27 +39,41 @@ def api(method: str, path: str, body: dict | None = None) -> dict:
         return json.loads(raw) if raw else {}
 
 
+def gh_output(name: str, value: str) -> None:
+    path = os.environ.get("GITHUB_OUTPUT")
+    if path:
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write(f"{name}={value}\n")
+
+
 def read_optional(path: str) -> str:
     return open(path, encoding="utf-8").read() if os.path.exists(path) else ""
 
 
-def wait_agent(agent_id: str) -> dict:
+def web_branch_from_run(run: dict) -> str | None:
+    git = run.get("git") or {}
+    for item in git.get("branches") or []:
+        repo = (item.get("repoUrl") or "").lower()
+        if WEB_REPO_HOST in repo and item.get("branch"):
+            return item["branch"]
+    return None
+
+
+def wait_run(agent_id: str, run_id: str) -> dict:
     deadline = time.time() + POLL_TIMEOUT
     last_status = ""
     while time.time() < deadline:
         try:
-            state = api("GET", f"/{agent_id}")
+            state = api("GET", f"/{agent_id}/runs/{run_id}")
         except urllib.error.HTTPError as e:
             print(f"Poll error {e.code}: {e.read().decode()}", file=sys.stderr)
             time.sleep(POLL_INTERVAL)
             continue
-        status = state.get("status") or state.get("agent", {}).get("status") or "unknown"
+        status = (state.get("status") or "unknown").upper()
         if status != last_status:
-            print(f"Agente {agent_id}: {status}")
+            print(f"Run {run_id}: {status}")
             last_status = status
-        if status in ("completed", "finished", "succeeded", "success"):
-            return state
-        if status in ("failed", "error", "cancelled", "canceled"):
+        if status in TERMINAL_RUN:
             return state
         time.sleep(POLL_INTERVAL)
     return {}
@@ -104,6 +121,8 @@ def main() -> int:
         context = read_optional(os.path.join(cicd_dir, ".ai", "agent-sync-context.md"))
 
     branch = os.environ.get("AGENT_BRANCH", f"feature/lovable/adapt-{lovable_sha[:8]}")
+    web_ref = os.environ.get("WEB_STARTING_REF", "feature/cicd/dev-automation")
+    back_ref = os.environ.get("BACK_STARTING_REF", "feature/cicd/dev-automation")
 
     mandatory = f"""
 # CONDICION DE EJECUCION — EMPALME OBLIGATORIO (NO COPY-PASTE)
@@ -167,22 +186,18 @@ Has leido `ReglasAgente/reglas-front.md`. Cumple TODAS las secciones (1-15).
 {context or "_Sin contexto_"}
 """
 
-    web_ref = os.environ.get("WEB_STARTING_REF", "feature/cicd/dev-automation")
-    back_ref = os.environ.get("BACK_STARTING_REF", "feature/cicd/dev-automation")
-    repos = [
-        {"url": "https://github.com/doeventsrepo/DoEventsWEB", "startingRef": web_ref},
-    ]
-    if os.environ.get("AGENT_INCLUDE_BACK", "true").lower() == "true":
+    repos = [{"url": "https://github.com/doeventsrepo/DoEventsWEB", "startingRef": branch}]
+    if os.environ.get("AGENT_INCLUDE_BACK", "false").lower() == "true":
         repos.append({"url": "https://github.com/doeventsrepo/DoEventsBack", "startingRef": back_ref})
 
     payload = {
         "prompt": {"text": text},
         "model": {"id": os.environ.get("CURSOR_AGENT_MODEL", "composer-2.5")},
         "repos": repos,
-        "target": {
-            "autoCreatePr": os.environ.get("AGENT_AUTO_PR", "false").lower() == "true",
-            "branchName": branch,
-        },
+        "workOnCurrentBranch": True,
+        "autoCreatePR": os.environ.get("AGENT_AUTO_PR", "false").lower() == "true",
+        "skipReviewerRequest": True,
+        "name": f"Lovable empalme DEV {lovable_sha[:8]}",
     }
 
     try:
@@ -191,15 +206,39 @@ Has leido `ReglasAgente/reglas-front.md`. Cumple TODAS las secciones (1-15).
         print(f"Cursor API {e.code}: {e.read().decode()}", file=sys.stderr)
         return 1
 
-    agent_id = created.get("id") or created.get("agent", {}).get("id")
-    print(f"Agente: {agent_id} -> {branch}")
+    agent = created.get("agent") or {}
+    run = created.get("run") or {}
+    agent_id = agent.get("id") or created.get("id")
+    run_id = run.get("id") or agent.get("latestRunId")
+    agent_url = agent.get("url", "")
+    print(f"Agente: {agent_id} run: {run_id} -> rama objetivo {branch}")
+    if agent_url:
+        print(f"URL: {agent_url}")
+    gh_output("cursor_agent_id", agent_id or "")
+    gh_output("cursor_run_id", run_id or "")
 
-    if os.environ.get("AGENT_WAIT", "true").lower() != "false" and agent_id:
-        final = wait_agent(agent_id)
-        result = final.get("result") or final.get("summary") or ""
-        if result:
-            print(result[:5000])
+    if os.environ.get("AGENT_WAIT", "true").lower() == "false":
+        gh_output("agent_pushed_branch", branch)
+        return 0
 
+    if not agent_id or not run_id:
+        print("ERROR: respuesta API sin agent/run id", file=sys.stderr)
+        return 1
+
+    final = wait_run(agent_id, run_id)
+    status = (final.get("status") or "unknown").upper()
+    pushed = web_branch_from_run(final) or branch
+    gh_output("agent_pushed_branch", pushed)
+
+    result = final.get("result") or final.get("text") or ""
+    if result:
+        print(result[:8000])
+
+    if status != "FINISHED":
+        print(f"ERROR: run termino con status {status}", file=sys.stderr)
+        return 1
+
+    print(f"OK: empalme en rama {pushed}")
     return 0
 
 

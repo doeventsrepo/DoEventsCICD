@@ -83,6 +83,8 @@
     "requireHumanApprovalForProd": true,
     "validateMocks": true,
     "validateSecrets": true,
-    "deployAfterAgentBranch": true
+    "deployAfterAgentBranch": true,
+    "gapEmpalmeWorkflow": "lovable-gap-empalme.yml",
+    "gapEmpalmeDefaultBatchSize": 20
   }
 }

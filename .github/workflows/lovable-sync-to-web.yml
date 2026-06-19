@@ -33,6 +33,14 @@ on:
         options:
           - 'true'
           - 'false'
+      run_gap_empalme_after:
+        description: Si similitud <98% tras sync, encadenar gap-empalme (batch 1)
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
       web_cicd_branch:
         description: Rama base DoEventsWEB (debe ser feature/*)
         required: false
@@ -200,6 +208,7 @@ jobs:
           name: design-comparison-pre-${{ github.run_id }}
           path: |
             cicd/design-comparison.json
+            cicd/lovable-change-manifest.json
             cicd/Reports/*-design-comparison-pre-*.md
 
       - name: Construir contexto agente
@@ -363,4 +372,78 @@ jobs:
     uses: ./.github/workflows/deploy-web-dev.yml
     with:
       web_ref: ${{ needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
+    secrets: inherit
+
+  validate-sync:
+    needs: [prepare, adapt, deploy-dev]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cicd
+
+      - name: Descargar comparacion pre-agente
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: design-comparison-pre-${{ github.run_id }}
+          path: cicd
+
+      - name: Descargar comparacion post-agente
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: design-comparison-post-${{ github.run_id }}
+          path: cicd
+
+      - name: Validar pipeline Lovable → DEV
+        run: |
+          BEFORE="cicd/design-comparison.json"
+          AFTER="cicd/design-comparison-post.json"
+          [ -f "$AFTER" ] || AFTER="$BEFORE"
+          AGENT_RAN="${{ needs.adapt.result == 'success' && 'true' || 'false' }}"
+          DEPLOY_RAN="${{ needs.deploy-dev.result == 'success' && 'true' || 'false' }}"
+          python3 cicd/scripts/lovable-sync/validate-pipeline-sync.py \
+            --design-before "$BEFORE" \
+            --design-after "$AFTER" \
+            --manifest cicd/lovable-change-manifest.json \
+            --lovable-sha "${{ needs.prepare.outputs.lovable_sha }}" \
+            --agent-ran "$AGENT_RAN" \
+            --deploy-ran "$DEPLOY_RAN"
+
+      - name: Resumen para operador
+        if: always()
+        run: |
+          echo "## Resultado sync Lovable → DEV" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Paso | Estado |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Lovable SHA | \`${{ needs.prepare.outputs.lovable_sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Similitud pre | **${{ needs.prepare.outputs.similarity_percent }}%** |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Agente (adapt) | ${{ needs.adapt.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Deploy DEV | ${{ needs.deploy-dev.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Similitud post | **${{ needs.adapt.outputs.similarity_percent_after || needs.prepare.outputs.similarity_percent }}%** |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "DEV: https://dev.doeventsapp.com" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ needs.adapt.outputs.similarity_percent_after || needs.prepare.outputs.similarity_percent }}" != "" ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Si similitud < 98%, ejecutar **Lovable Gap Empalme (DEV)**." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  gap-empalme-followup:
+    needs: [prepare, adapt, deploy-dev, validate-sync]
+    if: |
+      always() &&
+      needs.prepare.result == 'success' &&
+      (needs.deploy-dev.result == 'success' || needs.deploy-dev.result == 'skipped') &&
+      (inputs.run_gap_empalme_after == 'true' || github.event.inputs.run_gap_empalme_after == 'true')
+    uses: ./.github/workflows/lovable-gap-empalme.yml
+    with:
+      lovable_ref: ${{ needs.prepare.outputs.lovable_sha }}
+      web_cicd_branch: feature/cicd/dev-automation
+      batch_size: '20'
+      batch_index: '1'
+      run_agent: 'true'
+      deploy_dev_after: 'true'
     secrets: inherit

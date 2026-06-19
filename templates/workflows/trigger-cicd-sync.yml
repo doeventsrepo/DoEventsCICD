@@ -9,6 +9,10 @@ on:
       - 'src/**'
       - 'reglasActuacion/**'
       - 'package.json'
+
+concurrency:
+  group: trigger-cicd-sync-main
+  cancel-in-progress: true
   workflow_dispatch:
     inputs:
       run_agent:

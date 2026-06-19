@@ -1,0 +1,357 @@
+# Cierre focalizado de gaps Lovable vs DoEventsWEB (empalme + reporte backend pendiente)
+# DEV-only · rama feature/cicd/dev-automation
+name: Lovable Gap Empalme (DEV)
+
+on:
+  workflow_dispatch:
+    inputs:
+      lovable_ref:
+        description: SHA o rama discover-joyful-feed
+        required: false
+        default: main
+      web_cicd_branch:
+        description: Rama DoEventsWEB (debe ser feature/cicd/dev-automation)
+        required: false
+        default: feature/cicd/dev-automation
+      batch_size:
+        description: Gaps por batch (prioridad missing > needs_adaptation)
+        required: false
+        default: '20'
+      batch_index:
+        description: Número de batch (1 = primeros N gaps)
+        required: false
+        default: '1'
+      area_filter:
+        description: Filtrar por área (vacío = todas). Ej. Autenticación
+        required: false
+        default: ''
+      run_agent:
+        description: Ejecutar agente Cursor para implementar gaps del batch
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      agent_mode:
+        description: Incluir DoEventsBack si fullstack
+        required: false
+        default: frontend-only
+        type: choice
+        options:
+          - frontend-only
+          - fullstack
+      deploy_dev_after:
+        description: Desplegar DEV tras empalme exitoso
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+  workflow_call:
+    inputs:
+      lovable_ref:
+        type: string
+        default: main
+      web_cicd_branch:
+        type: string
+        default: feature/cicd/dev-automation
+      batch_size:
+        type: string
+        default: '20'
+      batch_index:
+        type: string
+        default: '1'
+      area_filter:
+        type: string
+        default: ''
+      run_agent:
+        type: string
+        default: 'true'
+      deploy_dev_after:
+        type: string
+        default: 'true'
+
+concurrency:
+  group: lovable-gap-empalme-dev
+  cancel-in-progress: false
+
+env:
+  CICD_DIR: ${{ github.workspace }}/cicd
+  DESIGN_REPO: doeventsrepo/discover-joyful-feed
+  WEB_REPO: doeventsrepo/DoEventsWEB
+  WEB_CICD_BRANCH: feature/cicd/dev-automation
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar rama WEB
+        env:
+          WEB_BRANCH: ${{ inputs.web_cicd_branch || github.event.inputs.web_cicd_branch || env.WEB_CICD_BRANCH }}
+        run: |
+          set -euo pipefail
+          branch="${WEB_BRANCH,,}"
+          for forbidden in main develop release; do
+            if [ "$branch" = "$forbidden" ] || [[ "$branch" == release/* ]]; then
+              echo "ERROR: rama prohibida: $WEB_BRANCH" >&2
+              exit 1
+            fi
+          done
+          if [ "$branch" != "feature/cicd/dev-automation" ]; then
+            echo "ERROR: solo feature/cicd/dev-automation (recibido: $WEB_BRANCH)" >&2
+            exit 1
+          fi
+
+  analyze-gaps:
+    needs: guard
+    runs-on: ubuntu-latest
+    outputs:
+      has_gaps: ${{ steps.manifest.outputs.has_gaps }}
+      web_branch: ${{ steps.branch.outputs.web_branch }}
+      lovable_sha: ${{ steps.lovable.outputs.sha }}
+      total_pending: ${{ steps.manifest.outputs.total_pending }}
+      gaps_in_batch: ${{ steps.manifest.outputs.gaps_in_batch }}
+      before_similarity: ${{ steps.compare.outputs.similarity }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cicd
+
+      - id: branch
+        run: |
+          WEB="${{ inputs.web_cicd_branch || github.event.inputs.web_cicd_branch || env.WEB_CICD_BRANCH }}"
+          echo "web_branch=$WEB" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DESIGN_REPO }}
+          ref: ${{ inputs.lovable_ref || github.event.inputs.lovable_ref || 'main' }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: lovable
+
+      - id: lovable
+        run: echo "sha=$(cd lovable && git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          ref: ${{ steps.branch.outputs.web_branch }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsWEB
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r cicd/requirements.txt
+
+      - name: Comparar diseño (baseline)
+        id: compare
+        run: |
+          python3 cicd/scripts/lovable-sync/compare-design-similarity.py \
+            lovable DoEventsWEB DoEventsWEB/.lovable-port-map.json \
+            cicd/design-comparison-before.json
+          SIM=$(python3 -c "import json; print(json.load(open('cicd/design-comparison-before.json'))['overallSimilarityPercent'])")
+          echo "similarity=$SIM" >> "$GITHUB_OUTPUT"
+
+      - name: Construir manifiesto de gaps
+        id: manifest
+        env:
+          AREA: ${{ inputs.area_filter || github.event.inputs.area_filter || '' }}
+        run: |
+          ARGS="cicd/design-comparison-before.json cicd/gap-manifest.json --batch-size ${{ inputs.batch_size || github.event.inputs.batch_size || '20' }} --batch-index ${{ inputs.batch_index || github.event.inputs.batch_index || '1' }} --run-id ${{ github.run_id }}"
+          if [ -n "$AREA" ]; then ARGS="$ARGS --area $AREA"; fi
+          OUT=$(python3 cicd/scripts/lovable-sync/build-gap-manifest.py $ARGS)
+          echo "$OUT"
+          HAS=$(python3 -c "import json; print('true' if json.load(open('cicd/gap-manifest.json'))['gapsInBatch']>0 else 'false')")
+          TOTAL=$(python3 -c "import json; print(json.load(open('cicd/gap-manifest.json'))['totalPendingGaps'])")
+          BATCH=$(python3 -c "import json; print(json.load(open('cicd/gap-manifest.json'))['gapsInBatch'])")
+          echo "has_gaps=$HAS" >> "$GITHUB_OUTPUT"
+          echo "total_pending=$TOTAL" >> "$GITHUB_OUTPUT"
+          echo "gaps_in_batch=$BATCH" >> "$GITHUB_OUTPUT"
+
+      - name: Subir baseline + manifiesto
+        uses: actions/upload-artifact@v4
+        with:
+          name: gap-empalme-input-${{ github.run_id }}
+          path: |
+            cicd/design-comparison-before.json
+            cicd/gap-manifest.json
+
+  gap-empalme:
+    needs: analyze-gaps
+    if: needs.analyze-gaps.outputs.has_gaps == 'true' && (inputs.run_agent != 'false' && github.event.inputs.run_agent != 'false')
+    runs-on: ubuntu-latest
+    outputs:
+      agent_branch: ${{ steps.agent.outputs.agent_pushed_branch || needs.analyze-gaps.outputs.web_branch }}
+      agent_skipped: ${{ steps.agent.outputs.agent_skipped || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cicd
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: gap-empalme-input-${{ github.run_id }}
+          path: cicd
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DESIGN_REPO }}
+          ref: ${{ needs.analyze-gaps.outputs.lovable_sha }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: lovable
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          ref: ${{ needs.analyze-gaps.outputs.web_branch }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsWEB
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r cicd/requirements.txt
+
+      - name: Contexto agente
+        run: |
+          python3 cicd/scripts/lovable-sync/build-agent-context.py \
+            lovable DoEventsWEB cicd/gap-manifest.json lovable/.ai/agent-sync-context.md
+
+      - name: Agente — empalme de gaps del batch
+        id: agent
+        env:
+          CICD_DIR: ${{ github.workspace }}/cicd
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          LOVABLE_DIR: ${{ github.workspace }}/lovable
+          WEB_DIR: ${{ github.workspace }}/DoEventsWEB
+          GAP_MANIFEST_PATH: ${{ github.workspace }}/cicd/gap-manifest.json
+          AGENT_BRANCH: ${{ needs.analyze-gaps.outputs.web_branch }}
+          AGENT_WAIT: "true"
+          AGENT_INCLUDE_BACK: ${{ (inputs.agent_mode == 'fullstack' || github.event.inputs.agent_mode == 'fullstack') && 'true' || 'false' }}
+          CURSOR_AGENT_MODEL: composer-2.5
+        run: python3 cicd/scripts/lovable-sync/run-gap-empalme-agent.py
+
+      - name: Validar build DEV
+        if: steps.agent.outputs.agent_skipped != 'true'
+        run: |
+          BRANCH="${{ steps.agent.outputs.agent_pushed_branch || needs.analyze-gaps.outputs.web_branch }}"
+          rm -rf DoEventsWEB-verify
+          git clone --depth 1 --branch "$BRANCH" \
+            "https://x-access-token:${{ secrets.DOEVENTS_WEB_PAT }}@github.com/${{ env.WEB_REPO }}.git" \
+            DoEventsWEB-verify
+          cd DoEventsWEB-verify
+          npm ci
+          npm run build:devaws
+
+  report:
+    needs: [analyze-gaps, gap-empalme]
+    if: always() && needs.analyze-gaps.result == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      gaps_remaining: ${{ steps.report.outputs.gaps_remaining }}
+      after_similarity: ${{ steps.after.outputs.similarity }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cicd
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: gap-empalme-input-${{ github.run_id }}
+          path: cicd
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DESIGN_REPO }}
+          ref: ${{ needs.analyze-gaps.outputs.lovable_sha }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: lovable
+
+      - name: Checkout WEB post-agente
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          ref: ${{ needs.gap-empalme.outputs.agent_branch || needs.analyze-gaps.outputs.web_branch }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsWEB
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r cicd/requirements.txt
+
+      - name: Comparar diseño (después)
+        id: after
+        run: |
+          if [ "${{ needs.analyze-gaps.outputs.has_gaps }}" = "false" ]; then
+            cp cicd/design-comparison-before.json cicd/design-comparison-after.json
+          else
+            python3 cicd/scripts/lovable-sync/compare-design-similarity.py \
+              lovable DoEventsWEB DoEventsWEB/.lovable-port-map.json \
+              cicd/design-comparison-after.json
+          fi
+          SIM=$(python3 -c "import json; print(json.load(open('cicd/design-comparison-after.json'))['overallSimilarityPercent'])")
+          echo "similarity=$SIM" >> "$GITHUB_OUTPUT"
+
+      - name: Generar reporte empalme + backend pendiente
+        id: report
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          python3 cicd/scripts/lovable-sync/generate-gap-empalme-report.py \
+            --before cicd/design-comparison-before.json \
+            --after cicd/design-comparison-after.json \
+            --manifest cicd/gap-manifest.json \
+            --web-dir DoEventsWEB \
+            --out "cicd/Reports/${DATE}-gap-empalme-${{ github.run_id }}.md" \
+            --run-id ${{ github.run_id }}
+          REM=$(python3 -c "import json; print(json.load(open('cicd/gap-empalme-summary-${{ github.run_id }}.json'))['gapsRemaining'])")
+          echo "gaps_remaining=$REM" >> "$GITHUB_OUTPUT"
+
+      - name: Copiar reporte a DoEventsWEB (trazabilidad)
+        run: |
+          mkdir -p DoEventsWEB/docs/changes
+          cp cicd/Reports/*-gap-empalme-${{ github.run_id }}.md DoEventsWEB/docs/changes/gap-empalme-latest.md
+
+      - name: Commit reporte en rama WEB
+        working-directory: DoEventsWEB
+        env:
+          WEB_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
+          WEB_BRANCH: ${{ needs.gap-empalme.outputs.agent_branch || needs.analyze-gaps.outputs.web_branch }}
+        run: |
+          git config user.name "doevents-cicd-bot"
+          git config user.email "cicd@doeventsapp.com"
+          git add docs/changes/gap-empalme-latest.md ReglasAgente/ 2>/dev/null || true
+          if [ -z "$(git diff --cached --name-only)" ]; then
+            echo "Sin cambios de reporte para commit"
+            exit 0
+          fi
+          git commit -m "docs(gap-empalme): reporte batch + backend pendiente [cicd:${{ github.run_id }}]"
+          git push "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git" "${WEB_BRANCH}"
+
+      - name: Subir artefactos reporte
+        uses: actions/upload-artifact@v4
+        with:
+          name: gap-empalme-report-${{ github.run_id }}
+          path: |
+            cicd/Reports/*-gap-empalme-*.md
+            cicd/gap-empalme-summary-*.json
+            cicd/design-comparison-after.json
+
+  deploy-dev:
+    needs: [analyze-gaps, gap-empalme, report]
+    if: |
+      always() &&
+      needs.analyze-gaps.result == 'success' &&
+      (needs.gap-empalme.result == 'success' || needs.gap-empalme.result == 'skipped') &&
+      needs.report.result == 'success' &&
+      (inputs.deploy_dev_after == 'true' || github.event.inputs.deploy_dev_after == 'true' || github.event.inputs.deploy_dev_after == '')
+    uses: ./.github/workflows/deploy-web-dev.yml
+    with:
+      web_ref: ${{ needs.gap-empalme.outputs.agent_branch || needs.analyze-gaps.outputs.web_branch }}
+    secrets: inherit

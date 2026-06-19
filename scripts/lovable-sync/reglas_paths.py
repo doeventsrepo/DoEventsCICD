@@ -32,6 +32,7 @@ def operativas_paths(root: Path | None = None) -> dict[str, Path]:
         "promptEmpalme": root / ops.get("promptEmpalme", "Reglas/operativas/prompt-empalme-web.md"),
         "promptFullstack": root / ops.get("promptFullstack", "Reglas/operativas/prompt-fullstack.md"),
         "reglaComparacion": root / ops.get("reglaComparacionDiseno", "Reglas/operativas/regla-comparacion-diseno.md"),
+        "promptGapEmpalme": root / ops.get("promptGapEmpalme", "Reglas/operativas/prompt-gap-empalme.md"),
     }
 
 

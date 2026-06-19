@@ -4,6 +4,7 @@
   "operativas": {
     "reglamento": "Reglas/operativas/reglamento-cursor-api.md",
     "promptEmpalme": "Reglas/operativas/prompt-empalme-web.md",
+    "promptGapEmpalme": "Reglas/operativas/prompt-gap-empalme.md",
     "promptFullstack": "Reglas/operativas/prompt-fullstack.md",
     "reglaComparacionDiseno": "Reglas/operativas/regla-comparacion-diseno.md"
   },

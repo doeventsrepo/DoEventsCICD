@@ -1,0 +1,43 @@
+# Dispara cierre de gaps Lovable → DoEventsWEB (empalme focalizado + reporte backend)
+name: Trigger Gap Empalme (DEV)
+
+on:
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: Gaps por batch
+        default: '20'
+      batch_index:
+        description: Índice de batch (1-based)
+        default: '1'
+      area_filter:
+        description: Área opcional (ej. Autenticación)
+        default: ''
+      deploy_dev_after:
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+
+concurrency:
+  group: trigger-gap-empalme-manual
+  cancel-in-progress: false
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disparar Lovable Gap Empalme en DoEventsCICD
+        env:
+          GH_TOKEN: ${{ secrets.DOEVENTS_CICD_PAT }}
+        run: |
+          gh workflow run "lovable-gap-empalme.yml" \
+            --repo doeventsrepo/DoEventsCICD \
+            --ref main \
+            -f lovable_ref=main \
+            -f web_cicd_branch=feature/cicd/dev-automation \
+            -f batch_size="${{ inputs.batch_size }}" \
+            -f batch_index="${{ inputs.batch_index }}" \
+            -f area_filter="${{ inputs.area_filter }}" \
+            -f run_agent=true \
+            -f agent_mode=frontend-only \
+            -f deploy_dev_after="${{ inputs.deploy_dev_after }}"

@@ -40,5 +40,9 @@ jobs:
           test -f .github/workflows/deploy-web-dev.yml
           ! grep -q 'deploy_qa_after' .github/workflows/lovable-sync-to-web.yml
           ! grep -q 'uses:.*deploy-web-qa' .github/workflows/lovable-sync-to-web.yml
-          echo "OK: sin referencias QA en sync automatico"
+          ! grep -qE 'build:qa|api-qa\.doeventsapp\.com|qa\.doeventsapp\.com' .github/workflows/lovable-sync-to-web.yml
+          ! grep -qE 'ref:.*develop' .github/workflows/lovable-sync-to-web.yml
+          grep -q 'feature/cicd/dev-automation' .github/workflows/lovable-sync-to-web.yml
+          grep -q 'build:devaws' .github/workflows/deploy-web-dev.yml
+          echo "OK: pipeline automatico apunta solo a DEV (feature/*, sa-east-1)"
       - run: test -f cicd.config.json && test -f prompts/REGLAS_CURSOR_API_LOVABLE_DOEVENTSWEB.md

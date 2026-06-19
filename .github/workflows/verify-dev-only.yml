@@ -1,0 +1,60 @@
+# Verificacion estatica: automatizacion DEV-only, develop intocable
+name: Verify DEV-only pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  dev-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: cicd.config.json
+        run: |
+          python3 -c "
+          import json, sys
+          c = json.load(open('cicd.config.json'))
+          p = c['pipeline']
+          assert p['targetEnvironment'] == 'dev', 'targetEnvironment debe ser dev'
+          assert p['forbidAutomaticQaDeploy'] is True
+          assert p['autoDeployQaOnDevelopMerge'] is False
+          assert c['awsDev']['web']['domain'] == 'dev.doeventsapp.com'
+          assert c['awsDev']['buildCommand'] == 'npm run build:devaws'
+          print('OK cicd.config.json')
+          "
+
+      - name: Workflow sync sin QA ni develop
+        run: |
+          SYNC=.github/workflows/lovable-sync-to-web.yml
+          DEV=.github/workflows/deploy-web-dev.yml
+          for f in "$SYNC" "$DEV"; do
+            test -f "$f" || { echo "Falta $f"; exit 1; }
+          done
+          ! grep -q deploy_qa_after "$SYNC"
+          ! grep -qE 'build:qa|api-qa|qa\.doeventsapp' "$SYNC" "$DEV"
+          grep -q 'PROTECTED_BRANCHES: main,develop,release' "$SYNC"
+          grep -q 'feature/cicd/dev-automation' "$SYNC"
+          grep -q 'environment: dev' "$DEV"
+          grep -q 'sa-east-1' "$DEV"
+          grep -q 'build:devaws' "$DEV"
+          echo "OK workflows automaticos = DEV + feature/*"
+
+      - name: QA workflows solo manual
+        run: |
+          for wf in deploy-web-qa.yml deploy-back-qa.yml deploy-ia-qa.yml; do
+            test -f ".github/workflows/$wf"
+            grep -q workflow_dispatch ".github/workflows/$wf"
+            grep -qi 'DEPLOY_QA_MANUAL\|manual' ".github/workflows/$wf"
+          done
+          echo "OK QA desacoplado (solo manual)"
+
+      - name: Agente — build devaws
+        run: |
+          grep -q 'BUILD_COMMAND: npm run build:devaws' .github/workflows/lovable-sync-to-web.yml
+          grep -q 'TARGET_ENV: dev' .github/workflows/lovable-sync-to-web.yml
+          ! grep -q 'build:qa' scripts/lovable-sync/run-port-agent-api.py || true
+          echo "OK agente apunta a DEV"

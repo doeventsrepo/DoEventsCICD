@@ -48,6 +48,12 @@ if (-not $mapsKey -and (Test-Path "c:\DoEvents\AplicacionWEB\DoEventsWEB\.env.de
 
 $awsKeyId = $env:AWS_ACCESS_KEY_ID_DEV
 $awsSecret = $env:AWS_SECRET_ACCESS_KEY_DEV
+$credsFile = Join-Path $PSScriptRoot "..\infrastructure\dev-sa-east-1\cicd-github-dev-credentials.json"
+if ((-not $awsKeyId -or -not $awsSecret) -and (Test-Path $credsFile)) {
+  $fileCreds = Get-Content $credsFile -Raw | ConvertFrom-Json
+  $awsKeyId = $fileCreds.accessKeyId
+  $awsSecret = $fileCreds.secretAccessKey
+}
 if (-not $SkipAwsFromProfile -and (-not $awsKeyId -or -not $awsSecret)) {
   $credFile = Join-Path $env:USERPROFILE ".aws\credentials"
   if (Test-Path $credFile) {

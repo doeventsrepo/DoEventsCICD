@@ -12,3 +12,5 @@ __pycache__/
 simulation/sandbox/
 simulation/workspaces/
 simulation/output/
+infrastructure/dev-sa-east-1/cicd-github-dev-credentials.json
+infrastructure/dev-sa-east-1/lambda-out*.json

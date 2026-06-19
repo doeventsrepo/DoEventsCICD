@@ -103,6 +103,7 @@ def main() -> int:
     lovable_sha = manifest.get("lovableSha", "unknown")
     changed = [x.get("path", x) if isinstance(x, dict) else x for x in manifest.get("changedFiles", [])]
 
+    dc = manifest.get("designComparison") or {}
     run_entry = {
         "id": f"prepare-{lovable_sha[:8]}",
         "lovableSha": lovable_sha,
@@ -110,9 +111,14 @@ def main() -> int:
         "timestamp": utc_now(),
         "workflowRunId": os.environ.get("GITHUB_RUN_ID"),
         "changeTypes": classify_from_manifest(manifest),
+        "designSimilarityPercent": dc.get("overallSimilarityPercent"),
+        "designSimilarityTarget": dc.get("targetSimilarityPercent", 98),
+        "designGapPercent": dc.get("alignmentGapPercent"),
+        "requiresDesignAlignment": dc.get("requiresAgentForDesignAlignment"),
         "summary": (
             f"Manifiesto: UI={manifest.get('hasUiChanges')}, "
-            f"reglas={manifest.get('hasRulesChanges')}, {len(changed)} archivo(s)"
+            f"reglas={manifest.get('hasRulesChanges')}, {len(changed)} archivo(s); "
+            f"similitud diseño={dc.get('overallSimilarityPercent', 'n/a')}%"
         ),
         "changedFilesLovable": changed,
         "webFilesModified": [],

@@ -3,7 +3,7 @@
 | Secreto | Repositorio | Uso |
 |---------|-------------|-----|
 | `CURSOR_API_KEY` | DoEventsCICD | Cursor Cloud Agents API (`/v1/agents`) |
-| `DOEVENTS_WEB_PAT` | DoEventsCICD | Push a `doeventsrepo/DoEventsWEB` (rama develop) |
+| `DOEVENTS_WEB_PAT` | DoEventsCICD | Push a `doeventsrepo/DoEventsWEB` ramas **`feature/*` únicamente** (NUNCA `develop`) |
 | `DOEVENTS_CICD_PAT` | discover-joyful-feed | Disparar workflows en DoEventsCICD |
 | `AWS_ACCESS_KEY_ID` | DoEventsCICD | Deploy QA S3/Serverless |
 | `AWS_SECRET_ACCESS_KEY` | DoEventsCICD | Deploy QA |

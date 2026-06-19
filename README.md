@@ -2,7 +2,7 @@
 
 Repositorio central de **orquestación CI/CD** para el ecosistema Do.Events: sincronización **Lovable → Cursor Agent (empalme) → DoEventsWEB/Back → AWS DEV (sa-east-1)**. QA solo manual.
 
-**Documentación:** [Arquitectura](docs/ARQUITECTURA.md) · [Manual configuración](docs/MANUAL_CONFIGURACION.md) · [Diagramas y especificación](docs/DIAGRAMAS_SECUENCIA_ESPECIFICACION.md) · [Runbook sync](docs/runbook-sync.md)  
+**Documentación:** [Arquitectura](docs/ARQUITECTURA.md) · [Manual configuración](docs/MANUAL_CONFIGURACION.md) · [Diagramas y especificación](docs/DIAGRAMAS_SECUENCIA_ESPECIFICACION.md) · [Reportes Lovable→DEV](Reports/README.md) · [Cursor QA (equipo)](docs/CURSOR_QA_ENTORNO_DESARROLLADORES.md) · [Prompt estándar QA](docs/PROMPT_ESTANDAR_DESARROLLO_QA.md) · [Runbook sync](docs/runbook-sync.md)  
 **Reglamento del agente:** `Reglas/operativas/reglamento-cursor-api.md`
 
 ---
@@ -94,7 +94,10 @@ flowchart LR
 ### Flujo de ramas
 
 ```text
-Lovable main → DoEventsCICD sync → feature/lovable/adapt-{sha} → PR → develop → deploy QA
+Lovable main → DoEventsCICD sync → feature/cicd/dev-automation (+ feature/lovable/adapt-*)
+    → deploy DEV (dev.doeventsapp.com)
+    → merge a develop: MANUAL por ingeniero (CICD no toca develop)
+    → QA manual desde develop cuando el equipo lo decida
 ```
 
 ---

@@ -1,0 +1,51 @@
+---
+description: Reglas Cursor para ajustes manuales QA en DoEventsWEB (us-east-2)
+globs:
+  - "packages/**"
+  - "config/**"
+  - "infrastructure/**"
+  - "docs/changes/**"
+alwaysApply: false
+---
+
+# DoEvents WEB — modo QA manual
+
+## Entorno
+- QA = `envRelease`: región **us-east-2**, web **https://qa.doeventsapp.com**, API **https://api-qa.doeventsapp.com**
+- Build: `npm run build:qa` con `VITE_DOEVENTS_ENV=qa`
+- Config: `config/environments/index.ts` (entrada `qa`)
+- Referencia central: `../envConfig/envRelease/environment.json` (monorepo)
+
+## Ramas
+- Trabajo en `feature/*`; integración vía PR a `develop`
+- No push directo a `main` ni deploy desde `feature/cicd/dev-automation` para QA
+
+## Implementación
+- Reutilizar `@doevents/shared`, hooks y servicios API existentes
+- Prohibido mocks runtime en `packages/shell/src/pages/` (`mock*`, `sampleData`, arrays estáticos de producción)
+- Prohibido commitear `.env*`, tokens, claves AWS
+- Diff mínimo; mismo estilo que archivos vecinos
+
+## Fases por prompt (obligatorio)
+1. **IMPLEMENTAR** — solo lo pedido en el ticket
+2. **LIMPIAR** — imports muertos, logs debug, código duplicado
+3. **REVISAR** — tabla checklist (build:qa, sin secretos, sin mocks) antes de sugerir deploy
+4. **DESPLEGAR** — solo si el usuario escribe explícitamente "autorizado deploy QA"; entonces listar comandos, no ejecutarlos solos
+5. **REGISTRAR** — proponer/actualizar `docs/changes/<ticket>-qa.md`
+
+## Prefijos rápidos
+- `@qa-implementar` → implementación
+- `@qa-limpiar` → clean del diff actual
+- `@qa-revisar` → checklist sin deploy
+- `@qa-deploy-plan` → plan de deploy manual
+- `@qa-registrar` → doc de cambios
+
+## Documentación
+- Prompt estándar: `DoEventsCICD/docs/PROMPT_ESTANDAR_DESARROLLO_QA.md`
+- Setup equipo: `DoEventsCICD/docs/CURSOR_QA_ENTORNO_DESARROLLADORES.md`
+
+## No hacer
+- Deploy automático al cerrar tarea
+- Cambiar pipeline DEV (DoEventsCICD) sin pedido
+- Copiar literal de Lovable/discover-joyful-feed
+- Usar `build:devaws` cuando el ticket dice QA

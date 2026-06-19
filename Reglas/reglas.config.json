@@ -4,7 +4,14 @@
   "operativas": {
     "reglamento": "Reglas/operativas/reglamento-cursor-api.md",
     "promptEmpalme": "Reglas/operativas/prompt-empalme-web.md",
-    "promptFullstack": "Reglas/operativas/prompt-fullstack.md"
+    "promptFullstack": "Reglas/operativas/prompt-fullstack.md",
+    "reglaComparacionDiseno": "Reglas/operativas/regla-comparacion-diseno.md"
+  },
+  "designComparison": {
+    "script": "scripts/lovable-sync/compare-design-similarity.py",
+    "reportScript": "scripts/lovable-sync/generate-design-report.py",
+    "targetSimilarityPercent": 98,
+    "reportsDir": "Reports"
   },
   "artefactosWeb": {
     "bootstrapTarget": "ReglasAgente",

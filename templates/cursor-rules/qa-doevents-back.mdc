@@ -1,0 +1,51 @@
+---
+description: Reglas Cursor para ajustes manuales QA en DoEventsBack (Lambdas qa, us-east-2)
+globs:
+  - "aws-lambda-*/**"
+  - "shared/**"
+  - "scripts/**"
+  - "buildspec*.yml"
+alwaysApply: false
+---
+
+# DoEvents Back — modo QA manual
+
+## Entorno
+- QA: **us-east-2**, stage **qa**, prefijo recursos **qa-**, tablas DynamoDB sufijo **-qa**
+- API pública: **https://api-qa.doeventsapp.com**
+- Deploy por servicio: `npm run deploy:qa` o `npx serverless deploy --config serverless.qa.yml --stage qa --region us-east-2`
+- Referencia: `../envConfig/envRelease/environment.json`
+
+## Ramas
+- `feature/*` → PR a `develop`; deploy QA solo lambdas del scope del ticket
+
+## Implementación
+- Editar `serverless.qa.yml` del servicio afectado, no `serverless.yml` prod
+- Variables de entorno en YAML QA; nunca hardcodear secrets en código
+- Mantener contratos API compatibles con DoEventsWEB (`config/environments` qa)
+- Si nuevo endpoint: documentar en `DoEventsWEB/docs/changes/` (impacto front)
+
+## Fases por prompt
+1. **IMPLEMENTAR** — handler, validación, IAM mínimo
+2. **LIMPIAR** — código muerto, logs excesivos
+3. **REVISAR** — `serverless package` o dry-run, región us-east-2, tablas `-qa`
+4. **DESPLEGAR** — listar comando exacto por lambda; ejecutar solo si usuario autoriza
+5. **REGISTRAR** — resumen en docs/changes del WEB o README del servicio
+
+## Prefijos
+- `@qa-implementar`, `@qa-limpiar`, `@qa-revisar`, `@qa-deploy-plan`, `@qa-registrar`
+
+## Deploy acotado
+- Desplegar **solo** el directorio `aws-lambda-<servicio>` modificado
+- No redeploy de todo el monorepo Back en un solo prompt
+
+## No hacer
+- `--stage prod` o región distinta de us-east-2 para QA
+- Borrar tablas DynamoDB
+- Modificar IAM global sin revisión humana
+- Deploy automático post-implementación
+
+## Docs
+- `DoEventsCICD/docs/PROMPT_ESTANDAR_DESARROLLO_QA.md`
+- `DoEventsCICD/docs/CURSOR_QA_ENTORNO_DESARROLLADORES.md`
+- `DoEventsBack/README.md` (deploy:qa)

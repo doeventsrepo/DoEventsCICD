@@ -100,7 +100,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       lovable_sha: ${{ steps.manifest.outputs.sha }}
-      requires_agent: ${{ steps.manifest.outputs.requires_agent }}
+      requires_agent: ${{ steps.design.outputs.requires_agent }}
+      similarity_percent: ${{ steps.design.outputs.similarity_percent }}
       web_branch: ${{ steps.branch.outputs.web_branch }}
     steps:
       - name: Checkout DoEventsCICD
@@ -155,6 +156,9 @@ jobs:
       - name: Gate obligatorio ReglasAgente
         run: python3 cicd/scripts/lovable-sync/validate-agent-gate.py DoEventsWEB
 
+      - name: Validar Reglas/ CICD
+        run: python3 cicd/scripts/lovable-sync/validate-reglas-cicd.py cicd
+
       - name: Analizar cambios Lovable
         id: manifest
         working-directory: lovable
@@ -164,10 +168,35 @@ jobs:
           LOVABLE_SHA=$(git rev-parse HEAD)
           python3 ../cicd/scripts/lovable-sync/analyze-lovable-diff.py . "__last_sync__" "$LOVABLE_SHA" ../DoEventsWEB || true
           cp lovable-change-manifest.json ../cicd/lovable-change-manifest.json
-          requires=$(python3 -c "import json; print(json.load(open('../cicd/lovable-change-manifest.json')).get('requiresAgent', True))")
-          echo "requires_agent=$requires" >> "$GITHUB_OUTPUT"
           echo "sha=$LOVABLE_SHA" >> "$GITHUB_OUTPUT"
           cat ../cicd/lovable-change-manifest.json
+
+      - name: Comparacion diseño Lovable vs WEB
+        id: design
+        run: |
+          python3 cicd/scripts/lovable-sync/compare-design-similarity.py \
+            lovable DoEventsWEB DoEventsWEB/.lovable-port-map.json cicd/design-comparison.json
+          MERGE=$(python3 cicd/scripts/lovable-sync/merge-design-into-manifest.py \
+            cicd/lovable-change-manifest.json cicd/design-comparison.json lovable/lovable-change-manifest.json)
+          echo "$MERGE"
+          echo "similarity_percent=$(echo "$MERGE" | python3 -c "import json,sys; print(json.load(sys.stdin)['overallSimilarityPercent'])")" >> "$GITHUB_OUTPUT"
+          echo "requires_agent=$(echo "$MERGE" | python3 -c "import json,sys; print(str(json.load(sys.stdin)['requiresAgent']).lower())")" >> "$GITHUB_OUTPUT"
+
+      - name: Generar reporte comparacion diseño (pre-agente)
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          python3 cicd/scripts/lovable-sync/generate-design-report.py \
+            cicd/design-comparison.json \
+            "cicd/Reports/${DATE}-design-comparison-pre-${{ github.run_id }}.md" \
+            "${{ github.run_id }}-pre"
+
+      - name: Subir artefacto comparacion diseño
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-comparison-pre-${{ github.run_id }}
+          path: |
+            cicd/design-comparison.json
+            cicd/Reports/*-design-comparison-pre-*.md
 
       - name: Construir contexto agente
         run: |
@@ -207,6 +236,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       agent_branch: ${{ steps.agent_meta.outputs.branch }}
+      similarity_percent_after: ${{ steps.design_post.outputs.similarity_percent }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -241,12 +271,16 @@ jobs:
       - name: Gate ReglasAgente
         run: python3 cicd/scripts/lovable-sync/validate-agent-gate.py DoEventsWEB
 
-      - name: Manifiesto y contexto
+      - name: Manifiesto, comparacion y contexto
         env:
           CICD_WEB_BRANCH: ${{ needs.prepare.outputs.web_branch }}
         run: |
           python3 cicd/scripts/lovable-sync/analyze-lovable-diff.py lovable "__last_sync__" HEAD DoEventsWEB || true
           cp lovable/lovable-change-manifest.json cicd/lovable-change-manifest.json
+          python3 cicd/scripts/lovable-sync/compare-design-similarity.py \
+            lovable DoEventsWEB DoEventsWEB/.lovable-port-map.json cicd/design-comparison.json
+          python3 cicd/scripts/lovable-sync/merge-design-into-manifest.py \
+            cicd/lovable-change-manifest.json cicd/design-comparison.json lovable/lovable-change-manifest.json
           python3 cicd/scripts/lovable-sync/build-agent-context.py \
             lovable DoEventsWEB cicd/lovable-change-manifest.json lovable/.ai/agent-sync-context.md
 
@@ -283,6 +317,33 @@ jobs:
           cd DoEventsWEB-verify
           npm ci
           npm run build:devaws
+
+      - name: Re-comparacion diseño (post-agente)
+        id: design_post
+        if: steps.agent_run.outcome == 'success'
+        run: |
+          rm -rf DoEventsWEB-post
+          git clone --depth 1 --branch "${{ steps.agent_meta.outputs.branch }}" \
+            "https://x-access-token:${{ secrets.DOEVENTS_WEB_PAT }}@github.com/${{ env.WEB_REPO }}.git" \
+            DoEventsWEB-post
+          python3 cicd/scripts/lovable-sync/compare-design-similarity.py \
+            lovable DoEventsWEB-post DoEventsWEB-post/.lovable-port-map.json cicd/design-comparison-post.json
+          SIM=$(python3 -c "import json; print(json.load(open('cicd/design-comparison-post.json'))['overallSimilarityPercent'])")
+          echo "similarity_percent=$SIM" >> "$GITHUB_OUTPUT"
+          DATE=$(date -u +%Y-%m-%d)
+          python3 cicd/scripts/lovable-sync/generate-design-report.py \
+            cicd/design-comparison-post.json \
+            "cicd/Reports/${DATE}-design-comparison-post-${{ github.run_id }}.md" \
+            "${{ github.run_id }}-post"
+
+      - name: Subir artefacto comparacion post-agente
+        if: steps.agent_run.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-comparison-post-${{ github.run_id }}
+          path: |
+            cicd/design-comparison-post.json
+            cicd/Reports/*-design-comparison-post-*.md
 
   deploy-dev:
     needs: [prepare, adapt]

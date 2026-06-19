@@ -13,8 +13,6 @@ from pathlib import Path
 
 from reglas_paths import min_reglas_front_bytes, operativas_paths
 
-from reglas_paths import min_reglas_front_bytes, operativas_paths
-
 API = "https://api.cursor.com/v1/agents"
 POLL_INTERVAL = 15
 POLL_TIMEOUT = 900
@@ -90,13 +88,22 @@ def main() -> int:
         ops = operativas_paths(Path(cicd_dir))
         instructions = read_optional(str(ops["promptEmpalme"]))
         reglas_doc = read_optional(str(ops["reglamento"]))
+        regla_comparacion = read_optional(str(ops["reglaComparacion"]))
     else:
         instructions = read_optional(os.path.join(lovable_dir, ".ai", "prompts", "port-lovable-to-web.md"))
         reglas_doc = ""
+        regla_comparacion = ""
+
+    design_cmp_path = os.path.join(cicd_dir, "design-comparison.json") if cicd_dir else ""
+    design_cmp_raw = read_optional(design_cmp_path) if design_cmp_path else ""
+    if not design_cmp_raw and manifest.get("designComparison"):
+        design_cmp_raw = json.dumps(manifest["designComparison"], indent=2)
 
     context = read_optional(os.path.join(lovable_dir, ".ai", "agent-sync-context.md"))
     if not context and cicd_dir:
         context = read_optional(os.path.join(cicd_dir, ".ai", "agent-sync-context.md"))
+
+    branch = os.environ.get("AGENT_BRANCH", f"feature/lovable/adapt-{lovable_sha[:8]}")
 
     mandatory = f"""
 # CONDICION DE EJECUCION — EMPALME OBLIGATORIO (NO COPY-PASTE)
@@ -110,6 +117,7 @@ Has leido `ReglasAgente/reglas-front.md`. Cumple TODAS las secciones (1-15).
 
 ## EMPALME (adaptacion) — OBLIGATORIO
 - Interpreta la intencion UX/reglas de Lovable e integrala en componentes **EXISTENTES**
+- **Comparacion diseño**: implementa TODAS las diferencias en design-comparison.json (objetivo ≥98% similitud)
 - Reutiliza `lovable-bridge/*`, `@doevents/shared`, servicios API reales
 - Valida campos, props, endpoints y tablas DynamoDB `-dev` antes de cambiar codigo
 - Si Lovable trae mockData/sampleData: **NO** llevarlo a runtime; usar hooks/servicios reales
@@ -129,8 +137,9 @@ Has leido `ReglasAgente/reglas-front.md`. Cumple TODAS las secciones (1-15).
 4. Archivos DoEventsBack (si aplica, rama feature/cicd/dev-automation)
 5. Evidencia mocksUsed: false
 6. `npm run build:devaws` exitoso
-7. Riesgos pendientes en decision-log.md
-8. Push a rama `{branch}` (feature/lovable/*)
+7. Re-comparar diseño y registrar % similitud antes/después en decision-log.md
+8. Riesgos pendientes en decision-log.md
+9. Push a rama `{branch}` (feature/lovable/*)
 
 ## Reglas completas
 {rules_content}
@@ -140,6 +149,8 @@ Has leido `ReglasAgente/reglas-front.md`. Cumple TODAS las secciones (1-15).
 
 {reglas_doc}
 
+{regla_comparacion}
+
 {mandatory}
 
 ## Manifiesto
@@ -147,11 +158,15 @@ Has leido `ReglasAgente/reglas-front.md`. Cumple TODAS las secciones (1-15).
 {manifest_raw}
 ```
 
+## Comparacion diseño Lovable vs WEB (prioridad empalme)
+```json
+{design_cmp_raw or "_Sin comparacion — ejecutar compare-design-similarity.py_"}
+```
+
 ## Contexto
 {context or "_Sin contexto_"}
 """
 
-    branch = os.environ.get("AGENT_BRANCH", f"feature/lovable/adapt-{lovable_sha[:8]}")
     web_ref = os.environ.get("WEB_STARTING_REF", "feature/cicd/dev-automation")
     back_ref = os.environ.get("BACK_STARTING_REF", "feature/cicd/dev-automation")
     repos = [

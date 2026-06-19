@@ -27,14 +27,24 @@ Diseño de Lovable sí. Mocks de Lovable no. Backend real siempre.
 
 ```text
 1. Leer ReglasAgente/reglas-front.md (completo)
-2. Leer `Reglas/operativas/reglamento-cursor-api.md`
-3. Leer manifiesto + agent-sync-context.md + reglas YAML Lovable (referencia)
-4. Clasificar: VISUAL | FRONTEND_LOGIC | BACKEND_REQUIRED | RISKY
-5. Adaptar en componentes EXISTENTES (pages/, lovable-bridge/) — **empalme**, no copia literal
-6. npm run build:devaws
-7. Actualizar ReglasAgente/ (4 archivos)
-8. Commits en rama feature/lovable/adapt-{sha} — **NO** push a develop/main/release
+2. Leer reglamento + regla-comparacion-diseno.md
+3. Ejecutar/revisar design-comparison.json (% similitud Lovable vs WEB)
+4. Implementar TODAS las diferencias de diseño pendientes (empalme, no copy-paste)
+5. Leer manifiesto + agent-sync-context.md + reglas YAML Lovable (referencia)
+6. Clasificar: VISUAL | FRONTEND_LOGIC | BACKEND_REQUIRED | RISKY
+7. Adaptar en componentes EXISTENTES (pages/, lovable-bridge/)
+8. npm run build:devaws
+9. Re-comparar diseño — objetivo ≥98% similitud
+10. Actualizar ReglasAgente/ (4 archivos) + Reports/
+11. Commits en rama feature/lovable/adapt-{sha} — NO push a develop/main/release
 ```
+
+## Regla de comparación de diseño (obligatoria)
+
+- Comparar **todo** diseño Lovable (`src/components`, `src/pages`) vs DoEventsWEB mapeado.
+- Todo archivo con similitud <98% o ausente en WEB debe ser **ajustado** respetando empalme.
+- **NO** copy-paste literal; **NO** mocks en runtime.
+- Reportar `overallSimilarityPercent` antes y después en `Reports/` y `cambios-lovable.json`.
 
 ## Arquitectura
 

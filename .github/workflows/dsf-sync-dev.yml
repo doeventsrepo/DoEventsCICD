@@ -298,6 +298,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       final_similarity: ${{ steps.loop.outputs.final_similarity }}
+      web_ref: ${{ steps.loop.outputs.web_ref }}
     steps:
       - uses: actions/checkout@v4
         with: { path: cicd }
@@ -321,6 +322,7 @@ jobs:
         id: loop
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          DOEVENTS_WEB_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
           AGENT_BRANCH: ${{ needs.adapt.result == 'success' && needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
           FALLBACK_SIM: ${{ needs.adapt.result == 'success' && needs.adapt.outputs.similarity_percent_after || needs.prepare.outputs.similarity_percent }}
         run: |
@@ -332,7 +334,19 @@ jobs:
           RC=$?
           FINAL=$(python3 -c "import json,os; from pathlib import Path; p=Path('cicd/gap-loop-summary-${{ github.run_id }}.json'); print(json.load(open(p))['finalSimilarity'] if p.exists() else os.environ.get('FALLBACK_SIM','0'))")
           echo "final_similarity=$FINAL" >> "$GITHUB_OUTPUT"
+          echo "web_ref=${AGENT_BRANCH}" >> "$GITHUB_OUTPUT"
+          LATEST=$(ls -t cicd/design-comparison-loop-after-b*-${{ github.run_id }}.json 2>/dev/null | head -1 || ls -t cicd/design-comparison-loop-before-${{ github.run_id }}.json 2>/dev/null | head -1 || true)
+          if [ -n "$LATEST" ]; then cp "$LATEST" cicd/design-comparison-gap-final.json; fi
           exit $RC
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dsf-gap-${{ github.run_id }}
+          path: |
+            cicd/gap-loop-summary-*.json
+            cicd/design-comparison-gap-final.json
+            cicd/gap-manifest-batch-*.json
 
   custom-gates:
     needs: [prepare, adapt]
@@ -358,12 +372,12 @@ jobs:
       always() &&
       needs.prepare.result == 'success' &&
       needs.custom-gates.result == 'success' &&
-      (needs.gap-loop.result == 'success' || needs.gap-loop.result == 'skipped') &&
+      (needs.gap-loop.result == 'success' || needs.gap-loop.result == 'failure' || needs.gap-loop.result == 'skipped') &&
       (needs.adapt.result == 'success' || needs.adapt.result == 'failure' || needs.adapt.result == 'skipped') &&
       (inputs.deploy_dev_after != 'false' && github.event.inputs.deploy_dev_after != 'false')
     uses: ./.github/workflows/deploy-web-dev.yml
     with:
-      web_ref: ${{ needs.adapt.result == 'success' && needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
+      web_ref: ${{ needs.gap-loop.outputs.web_ref || (needs.adapt.result == 'success' && needs.adapt.outputs.agent_branch) || needs.prepare.outputs.web_branch }}
       lovable_sha: ${{ needs.prepare.outputs.lovable_sha }}
       run_id: ${{ github.run_id }}
     secrets: inherit
@@ -408,10 +422,17 @@ jobs:
           name: dsf-adapt-${{ github.run_id }}
           path: cicd/artifacts-adapt
 
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: dsf-gap-${{ github.run_id }}
+          path: cicd/artifacts-gap
+
       - name: Preparar archivos validación
         run: |
           cp cicd/artifacts-pre/design-comparison.json cicd/design-comparison.json 2>/dev/null || true
           cp cicd/artifacts-adapt/design-comparison-post.json cicd/design-comparison-post.json 2>/dev/null || true
+          cp cicd/artifacts-gap/design-comparison-gap-final.json cicd/design-comparison-post.json 2>/dev/null || true
           [ -f cicd/design-comparison-post.json ] || cp cicd/design-comparison.json cicd/design-comparison-post.json
 
       - uses: actions/setup-python@v5

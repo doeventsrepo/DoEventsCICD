@@ -15,6 +15,22 @@ def run(cmd: list[str], cwd: Path | None = None) -> None:
     subprocess.check_call(cmd, cwd=cwd)
 
 
+def sync_web_from_remote(web: Path, branch: str) -> None:
+    """Actualiza checkout local tras push del agente (comparación post-batch correcta)."""
+    if not (web / ".git").is_dir():
+        print(f"AVISO: {web} sin .git — omitir sync remoto")
+        return
+    pat = os.environ.get("DOEVENTS_WEB_PAT", "")
+    if pat:
+        run([
+            "git", "remote", "set-url", "origin",
+            f"https://x-access-token:{pat}@github.com/doeventsrepo/DoEventsWEB.git",
+        ], cwd=web)
+    run(["git", "fetch", "origin", branch, "--depth", "1"], cwd=web)
+    run(["git", "checkout", "-B", branch, f"origin/{branch}"], cwd=web)
+    print(f"WEB sincronizado con origin/{branch}")
+
+
 def similarity(path: Path) -> float:
     return float(json.loads(path.read_text(encoding="utf-8"))["overallSimilarityPercent"])
 
@@ -75,8 +91,10 @@ def main() -> int:
             break
 
         os.environ["GAP_MANIFEST_PATH"] = str(gap_manifest)
-        os.environ.setdefault("AGENT_BRANCH", os.environ.get("AGENT_BRANCH", "feature/cicd/dev-automation"))
+        branch = os.environ.get("AGENT_BRANCH", "feature/cicd/dev-automation")
+        os.environ.setdefault("AGENT_BRANCH", branch)
         run([sys.executable, str(gap_agent_script)])
+        sync_web_from_remote(web, branch)
 
         after_path = cicd / f"design-comparison-loop-after-b{batch_idx}-{args.run_id}.json"
         run([sys.executable, str(compare_script), str(lovable), str(web), args.port_map, str(after_path)])

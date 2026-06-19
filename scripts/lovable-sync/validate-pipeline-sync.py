@@ -97,7 +97,8 @@ def main() -> int:
             f"Similitud {after_sim}% < objetivo {target_sim}% — "
             f"quedan ~{pending} gaps pendientes"
         )
-        if blocking:
+        dev_phase = dsf.get("devValidationPhase", False)
+        if blocking and not dev_phase:
             errors.append(msg)
         else:
             warnings.append(msg)

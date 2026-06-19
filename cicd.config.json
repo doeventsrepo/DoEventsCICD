@@ -47,6 +47,11 @@
     "requireSmokeTests": true,
     "requirePortMapCoverage": true,
     "publishBuildArtifact": true,
+    "devValidationPhase": true,
+    "deployDev": {
+      "requireGapLoopSuccess": false,
+      "note": "Desplegar DEV tras adapt+gap aunque similitud <98%; QA sigue bloqueado"
+    },
     "qaPromotion": {
       "enabled": false,
       "reason": "QA inhabilitado hasta validar ciclo DEV completo (sincronización + gates + smoke)",

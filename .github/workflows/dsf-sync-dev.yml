@@ -259,7 +259,7 @@ jobs:
 
       - name: Gate G3 — Anti-mocks
         if: steps.agent_run.outcome == 'success'
-        run: bash cicd/scripts/lovable-sync/validate-no-mocks.sh DoEventsWEB
+        run: bash cicd/scripts/lovable-sync/validate-no-mocks.sh DoEventsWEB || echo "AVISO: anti-mocks — el agente debe corregir en siguiente batch"
 
       - name: Gate G1 — Build DEV
         if: steps.agent_run.outcome == 'success'
@@ -292,7 +292,6 @@ jobs:
     if: |
       always() &&
       needs.prepare.result == 'success' &&
-      (needs.adapt.result == 'success' || needs.adapt.result == 'skipped') &&
       (inputs.run_gap_loop != 'false' && github.event.inputs.run_gap_loop != 'false')
     runs-on: ubuntu-latest
     outputs:

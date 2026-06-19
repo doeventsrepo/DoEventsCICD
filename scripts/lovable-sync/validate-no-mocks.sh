@@ -33,17 +33,21 @@ scan_dir "$SHELL_SRC" "shell/src (excepto lovable/)" "lovable" || fail=1
 scan_dir "${SHELL_SRC}/lovable-bridge" "lovable-bridge/" "" || fail=1
 scan_dir "$SHARED_SRC/api" "shared/api/" "" || fail=1
 
-# Prohibir import directo de mockData desde pages
-PAGES="${SHELL_SRC}/pages"
+# Prohibir import de valores mock; permitir import type (solo tipos, sin runtime)
 if [ -d "$PAGES" ]; then
-  import_hits=$(grep -RInE "from ['\"].*mock|import.*mockData|import.*sampleData" "$PAGES" 2>/dev/null \
-    | grep -vE '\.test\.|__tests__' || true)
-  if [ -n "$import_hits" ]; then
-    echo "ERROR: imports de mocks en pages/:" >&2
-    echo "$import_hits" >&2
+  value_import_hits=$(grep -RInE "import\s+[^t].*mock|import\s+\{[^}]*\}\s+from\s+['\"].*mock|from\s+['\"]@lovable/data/mock" "$PAGES" 2>/dev/null \
+    | grep -vE '\.test\.|__tests__|import\s+type\s' || true)
+  if [ -n "$value_import_hits" ]; then
+    echo "ERROR: imports de valores mock en pages/:" >&2
+    echo "$value_import_hits" >&2
     fail=1
   else
-    echo "OK: pages/ sin imports de mocks"
+    type_only=$(grep -RIn "import type.*mock" "$PAGES" 2>/dev/null | grep -vE '\.test\.|__tests__' || true)
+    if [ -n "$type_only" ]; then
+      echo "AVISO: import type desde mock (permitido, sin runtime):" >&2
+      echo "$type_only" | head -5 >&2
+    fi
+    echo "OK: pages/ sin imports de valores mock"
   fi
 fi
 

@@ -2,6 +2,20 @@
 
 Repo: [doeventsrepo/DoEventsCICD](https://github.com/doeventsrepo/DoEventsCICD)
 
+## Estado actual (automatizacion)
+
+| Paso | Estado |
+|------|--------|
+| Repo `DoEventsCICD` en GitHub | Hecho |
+| Workflows DEV-only (`feature/*`, `build:devaws`, sa-east-1) | Hecho |
+| Guard anti-`develop` / anti-QA automatico | Hecho (`verify-dev-only.yml`) |
+| Trigger en `discover-joyful-feed` | Hecho (`trigger-cicd-sync.yml` + push `main`) |
+| IAM `cicd-github-dev` (solo S3 dev + CF) | Hecho (local) |
+| Secretos GitHub environment `dev` | **Pendiente — requiere `gh auth login`** |
+| Prueba workflow en Actions | Pendiente |
+
+**Importante:** la rama `develop` de DoEventsWEB **no se modifica**. El pipeline solo usa `feature/cicd/dev-automation` y ramas `feature/lovable/adapt-*` creadas por el agente.
+
 ---
 
 ## Paso 1 — Autenticarte en GitHub CLI (una vez)

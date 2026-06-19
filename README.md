@@ -1,9 +1,9 @@
-# DoEventsCICD — Documentación técnica
+# DoEventsCICD — Design Sync Framework (DSF) v3
 
-Repositorio central de **orquestación CI/CD** para el ecosistema Do.Events: sincronización **Lovable → Cursor Agent (empalme) → DoEventsWEB/Back → AWS DEV (sa-east-1)**. QA solo manual.
+Repositorio central de **orquestación CI/CD** para el ecosistema Do.Events: **Lovable → empalme → gates bloqueantes → AWS DEV**. QA promoción **inhabilitada** hasta validar ciclo DEV.
 
-**Documentación:** [Arquitectura](docs/ARQUITECTURA.md) · [Manual configuración](docs/MANUAL_CONFIGURACION.md) · [Diagramas y especificación](docs/DIAGRAMAS_SECUENCIA_ESPECIFICACION.md) · [Reportes Lovable→DEV](Reports/README.md) · [Cursor QA (equipo)](docs/CURSOR_QA_ENTORNO_DESARROLLADORES.md) · [Prompt estándar QA](docs/PROMPT_ESTANDAR_DESARROLLO_QA.md) · [Runbook sync](docs/runbook-sync.md)  
-**Reglamento del agente:** `Reglas/operativas/reglamento-cursor-api.md`
+**Documentación:** [DSF v3](docs/DSF.md) · [Runbook DSF](docs/runbook-dsf.md) · [Arquitectura](docs/ARQUITECTURA.md) · [Reportes](Reports/README.md) · [Runbook sync (legacy)](docs/runbook-sync.md)  
+**CLI:** `./scripts/dsf` · **Workflow principal:** `dsf-sync-dev.yml`
 
 ---
 

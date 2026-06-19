@@ -1,0 +1,42 @@
+# DSF — Promoción QA (INHABILITADA hasta validar ciclo DEV)
+# Habilitar en cicd.config.json: dsf.qaPromotion.enabled = true
+name: DSF Promote QA
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Escribir ENABLE_QA_PROMOTION para confirmar (requiere dsf.qaPromotion.enabled=true)
+        required: true
+        default: 'BLOCKED'
+
+jobs:
+  guard-qa-disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar QA inhabilitado en cicd.config.json
+        run: |
+          ENABLED=$(python3 -c "import json; c=json.load(open('cicd.config.json')); print(str(c.get('dsf',{}).get('qaPromotion',{}).get('enabled',False)).lower())")
+          CONFIRM="${{ github.event.inputs.confirm }}"
+          if [ "$ENABLED" != "true" ]; then
+            echo "## QA promoción INHABILITADA" >> "$GITHUB_STEP_SUMMARY"
+            REASON=$(python3 -c "import json; print(json.load(open('cicd.config.json'))['dsf']['qaPromotion']['reason'])")
+            echo "$REASON" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Para habilitar: editar cicd.config.json → dsf.qaPromotion.enabled = true" >> "$GITHUB_STEP_SUMMARY"
+            echo "ERROR: QA promoción bloqueada por política DSF" >&2
+            exit 1
+          fi
+          if [ "$CONFIRM" != "ENABLE_QA_PROMOTION" ]; then
+            echo "ERROR: confirmación inválida" >&2
+            exit 1
+          fi
+          echo "QA habilitado en config — ejecutar deploy QA manual"
+
+  deploy-qa-when-enabled:
+    needs: guard-qa-disabled
+    if: false
+    uses: ./.github/workflows/deploy-web-qa.yml
+    secrets: inherit

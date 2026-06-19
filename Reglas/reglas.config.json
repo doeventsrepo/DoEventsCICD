@@ -1,6 +1,7 @@
 {
-  "version": "1.0",
-  "description": "Reglas del agente Cursor API Key para empalmar Lovable en DoEventsWEB",
+  "version": "3.0",
+  "framework": "DSF",
+  "description": "Reglas del agente y gates DSF para empalmar Lovable en DoEventsWEB",
   "operativas": {
     "reglamento": "Reglas/operativas/reglamento-cursor-api.md",
     "promptEmpalme": "Reglas/operativas/prompt-empalme-web.md",
@@ -8,11 +9,17 @@
     "promptFullstack": "Reglas/operativas/prompt-fullstack.md",
     "reglaComparacionDiseno": "Reglas/operativas/regla-comparacion-diseno.md"
   },
+  "customRules": {
+    "dir": "Reglas/custom",
+    "runner": "scripts/rules/run-custom-gates.py"
+  },
   "designComparison": {
     "script": "scripts/lovable-sync/compare-design-similarity.py",
     "reportScript": "scripts/lovable-sync/generate-design-report.py",
+    "syncReportScript": "scripts/lovable-sync/generate-sync-report.py",
     "targetSimilarityPercent": 98,
-    "reportsDir": "Reports"
+    "reportsDir": "Reports",
+    "blockingGates": true
   },
   "artefactosWeb": {
     "bootstrapTarget": "ReglasAgente",
@@ -25,16 +32,26 @@
     ],
     "minReglasFrontBytes": 500
   },
-  "fuentesExternas": {
-    "lovableBusinessRules": "reglasActuacion",
-    "lovableBusinessRulesRepo": "doeventsrepo/discover-joyful-feed",
-    "note": "reglasActuacion vive en el repo diseño; Reglas/ es la fuente CICD para el agente"
-  },
   "gates": {
+    "G0_portMap": "scripts/lovable-sync/validate-port-map-coverage.py",
+    "G1_build": "npm run build:devaws",
+    "G3_antiMocks": "scripts/lovable-sync/validate-no-mocks.sh",
+    "G6_smoke": "scripts/smoke/dev-smoke.sh",
+    "G_final": "scripts/lovable-sync/validate-pipeline-sync.py",
     "forbidLiteralCopy": true,
     "forbidLovableMocks": true,
     "buildCommand": "npm run build:devaws",
     "protectedBranches": ["main", "develop", "release", "release/*"],
-    "outputBranch": "feature/cicd/dev-automation"
+    "outputBranch": "feature/cicd/dev-automation",
+    "qaPromotionEnabled": false
+  },
+  "dsf": {
+    "cli": "scripts/dsf",
+    "mainWorkflow": "dsf-sync-dev.yml",
+    "gapLoopScript": "scripts/lovable-sync/dsf-gap-loop.py",
+    "providers": {
+      "aws": "scripts/deploy/providers/aws-deploy.sh",
+      "azure": "scripts/deploy/providers/azure-deploy.sh"
+    }
   }
 }

@@ -1,19 +1,26 @@
-# Deploy DoEventsWEB a DEV sa-east-1 (dev.doeventsapp.com)
-# Solo ramas feature/* — NO develop/release/main
+# Deploy DoEventsWEB a DEV sa-east-1 — DSF provider AWS
 name: Deploy WEB DEV
 
 on:
   workflow_dispatch:
     inputs:
       web_ref:
-        description: Rama DoEventsWEB a desplegar (feature/*)
-        required: false
         default: feature/cicd/dev-automation
+      lovable_sha:
+        default: unknown
+      run_id:
+        default: local
   workflow_call:
     inputs:
       web_ref:
         type: string
         default: feature/cicd/dev-automation
+      lovable_sha:
+        type: string
+        default: unknown
+      run_id:
+        type: string
+        default: local
 
 concurrency:
   group: deploy-web-dev
@@ -30,13 +37,11 @@ jobs:
           branch="${REF,,}"
           for forbidden in main develop release; do
             if [ "$branch" = "$forbidden" ] || [[ "$branch" == release/* ]]; then
-              echo "ERROR: rama prohibida para deploy DEV automatico: $REF" >&2
-              exit 1
+              echo "ERROR: rama prohibida: $REF" >&2; exit 1
             fi
           done
           if [[ ! "$branch" == feature/* ]]; then
-            echo "ERROR: deploy DEV solo desde ramas feature/* (recibido: $REF)" >&2
-            exit 1
+            echo "ERROR: solo feature/*" >&2; exit 1
           fi
 
   deploy:
@@ -49,6 +54,10 @@ jobs:
           repository: doeventsrepo/DoEventsWEB
           ref: ${{ inputs.web_ref || 'feature/cicd/dev-automation' }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
+
+      - uses: actions/checkout@v4
+        with:
+          path: cicd
 
       - uses: actions/setup-node@v4
         with:
@@ -66,12 +75,18 @@ jobs:
           VITE_COGNITO_DOMAIN: doevents-qa.auth.us-east-2.amazoncognito.com
         run: npm ci && npm run build:devaws
 
-      - name: Validar anti-mocks
+      - name: Gate G3 — Anti-mocks
+        run: bash cicd/scripts/lovable-sync/validate-no-mocks.sh .
+
+      - name: Manifest build
         run: |
-          curl -fsSL -o validate.sh https://raw.githubusercontent.com/doeventsrepo/DoEventsCICD/main/scripts/lovable-sync/validate-no-mocks.sh || true
-          if [ -f validate.sh ]; then bash validate.sh .; fi
-          ! grep -RIn "mockEvents\|mockTickets\|mockOrders\|hardcodedEvents" packages/shell/src/pages 2>/dev/null | grep -v test || \
-            (echo "Mocks detectados en pages/" && exit 1)
+          jq -n \
+            --arg sha "${{ inputs.lovable_sha }}" \
+            --arg run "${{ inputs.run_id }}" \
+            --arg ref "${{ inputs.web_ref }}" \
+            --arg built "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{lovableSha:$sha, runId:$run, webRef:$ref, builtAt:$built, qaPromotionEnabled:false}' \
+            > build-manifest.json
 
       - name: Deploy S3 + CloudFront (sa-east-1)
         env:
@@ -95,4 +110,14 @@ jobs:
           if [ -n "$CF" ]; then
             aws cloudfront create-invalidation --distribution-id "$CF" --paths "/*"
           fi
-          echo "Deploy DEV desde rama ${WEB_REF}: https://dev.doeventsapp.com"
+          echo "Deploy DEV rama ${WEB_REF}: https://dev.doeventsapp.com"
+
+      - name: Publicar artefacto inmutable (promoción QA futura)
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+          DSF_ARTIFACT_BUCKET: doevents-cicd-artifacts-dev
+          DSF_ARTIFACT_REGION: sa-east-1
+        run: |
+          bash cicd/scripts/deploy/publish-artifact.sh . build-artifact \
+            "${{ inputs.lovable_sha }}" "${{ inputs.run_id }}" || echo "AVISO: artefacto no publicado (bucket opcional)"

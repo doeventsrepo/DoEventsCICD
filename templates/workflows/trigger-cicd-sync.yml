@@ -1,18 +1,16 @@
 # Copiar a discover-joyful-feed/.github/workflows/trigger-cicd-sync.yml
-# Dispara pipeline DEV-only (NO QA). WEB/Back en ramas feature/*.
-name: Trigger DoEventsCICD Sync (DEV)
+name: Trigger DSF Sync (DEV)
 
 on:
   push:
     branches: [main]
     paths:
       - 'src/**'
+      - 'public/**'
       - 'reglasActuacion/**'
       - 'package.json'
-
-concurrency:
-  group: trigger-cicd-sync-main
-  cancel-in-progress: true
+      - 'tailwind.config.ts'
+      - 'index.html'
   workflow_dispatch:
     inputs:
       run_agent:
@@ -22,23 +20,26 @@ concurrency:
       agent_mode:
         default: frontend-only
         type: choice
-        options:
-          - frontend-only
-          - fullstack
+        options: [frontend-only, fullstack]
+
+concurrency:
+  group: trigger-dsf-sync-main
+  cancel-in-progress: true
 
 jobs:
   trigger:
     runs-on: ubuntu-latest
     steps:
-      - name: Disparar pipeline DEV (sa-east-1)
+      - name: Disparar DSF Sync DEV
         env:
           GH_TOKEN: ${{ secrets.DOEVENTS_CICD_PAT }}
         run: |
-          gh workflow run "lovable-sync-to-web.yml" \
+          gh workflow run "dsf-sync-dev.yml" \
             --repo doeventsrepo/DoEventsCICD \
             --ref main \
             -f run_agent="${{ inputs.run_agent || 'true' }}" \
             -f agent_mode="${{ inputs.agent_mode || 'frontend-only' }}" \
             -f lovable_ref="${{ github.sha }}" \
             -f deploy_dev_after=true \
+            -f run_gap_loop=true \
             -f web_cicd_branch=feature/cicd/dev-automation

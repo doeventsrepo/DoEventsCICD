@@ -1,0 +1,475 @@
+# DSF — Design Sync Framework: Lovable → empalme → gates bloqueantes → DEV
+# QA promoción INHABILITADA (dsf.qaPromotion.enabled=false en cicd.config.json)
+name: DSF Sync DEV
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_agent:
+        description: Ejecutar agente Cursor (forzado si hay cambios o similitud <98%)
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+      agent_mode:
+        description: Modo del agente
+        default: frontend-only
+        type: choice
+        options: [frontend-only, fullstack]
+      lovable_ref:
+        description: SHA o rama discover-joyful-feed
+        default: main
+      deploy_dev_after:
+        description: Desplegar DEV tras gates OK
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+      run_gap_loop:
+        description: Encadenar gap-empalme hasta 98% (max 5 batches)
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+      web_cicd_branch:
+        default: feature/cicd/dev-automation
+  repository_dispatch:
+    types: [lovable-sync, dsf-sync]
+  workflow_call:
+    inputs:
+      run_agent:
+        type: string
+        default: 'true'
+      agent_mode:
+        type: string
+        default: frontend-only
+      lovable_ref:
+        type: string
+        default: main
+      deploy_dev_after:
+        type: string
+        default: 'true'
+      run_gap_loop:
+        type: string
+        default: 'true'
+      web_cicd_branch:
+        type: string
+        default: feature/cicd/dev-automation
+
+concurrency:
+  group: dsf-sync-dev
+  cancel-in-progress: false
+
+env:
+  CICD_DIR: ${{ github.workspace }}/cicd
+  DESIGN_REPO: doeventsrepo/discover-joyful-feed
+  WEB_REPO: doeventsrepo/DoEventsWEB
+  BACK_REPO: doeventsrepo/DoEventsBack
+  WEB_CICD_BRANCH: feature/cicd/dev-automation
+  DSF_TARGET_SIM: '98'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar rama y QA inhabilitado
+        env:
+          WEB_BRANCH: ${{ inputs.web_cicd_branch || github.event.inputs.web_cicd_branch || github.event.client_payload.web_cicd_branch || env.WEB_CICD_BRANCH }}
+        run: |
+          set -euo pipefail
+          branch="${WEB_BRANCH,,}"
+          for forbidden in main develop release; do
+            if [ "$branch" = "$forbidden" ] || [[ "$branch" == release/* ]]; then
+              echo "ERROR: rama prohibida: $WEB_BRANCH" >&2; exit 1
+            fi
+          done
+          if [ "$branch" != "feature/cicd/dev-automation" ]; then
+            echo "ERROR: solo feature/cicd/dev-automation" >&2; exit 1
+          fi
+          echo "DSF guard OK — QA promoción inhabilitada por cicd.config.json"
+
+  prepare:
+    needs: guard
+    runs-on: ubuntu-latest
+    outputs:
+      lovable_sha: ${{ steps.manifest.outputs.sha }}
+      requires_agent: ${{ steps.force.outputs.requires_agent }}
+      similarity_percent: ${{ steps.design.outputs.similarity_percent }}
+      web_branch: ${{ steps.branch.outputs.web_branch }}
+      has_changes: ${{ steps.manifest.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cicd
+
+      - id: branch
+        run: echo "web_branch=${{ inputs.web_cicd_branch || github.event.inputs.web_cicd_branch || env.WEB_CICD_BRANCH }}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DESIGN_REPO }}
+          ref: ${{ inputs.lovable_ref || github.event.client_payload.ref || 'main' }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: lovable
+          fetch-depth: 0
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          ref: ${{ steps.branch.outputs.web_branch }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsWEB
+
+      - name: Bootstrap ReglasAgente
+        run: |
+          for f in reglas-front.md cambios-lovable.json decision-log.md impacto-backend.md; do
+            [ -f "DoEventsWEB/ReglasAgente/$f" ] || { mkdir -p DoEventsWEB/ReglasAgente; cp "cicd/Reglas/artefactos-web/$f" "DoEventsWEB/ReglasAgente/$f"; }
+          done
+          [ -f DoEventsWEB/.lovable-port-map.json ] || cp cicd/templates/.lovable-port-map.json DoEventsWEB/.lovable-port-map.json
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install -r cicd/requirements.txt
+
+      - name: Validar reglas YAML + ReglasAgente + CICD
+        run: |
+          python3 cicd/scripts/lovable-sync/validate-rules.py lovable/reglasActuacion
+          python3 cicd/scripts/lovable-sync/validate-agent-gate.py DoEventsWEB
+          python3 cicd/scripts/lovable-sync/validate-reglas-cicd.py cicd
+
+      - name: Analizar cambios Lovable
+        id: manifest
+        working-directory: lovable
+        env:
+          CICD_WEB_BRANCH: ${{ steps.branch.outputs.web_branch }}
+        run: |
+          LOVABLE_SHA=$(git rev-parse HEAD)
+          python3 ../cicd/scripts/lovable-sync/analyze-lovable-diff.py . "__last_sync__" "$LOVABLE_SHA" ../DoEventsWEB || true
+          cp lovable-change-manifest.json ../cicd/lovable-change-manifest.json
+          HAS=$(python3 -c "import json; m=json.load(open('../cicd/lovable-change-manifest.json')); print('true' if m.get('hasUiChanges') or m.get('hasRulesChanges') else 'false')")
+          echo "sha=$LOVABLE_SHA" >> "$GITHUB_OUTPUT"
+          echo "has_changes=$HAS" >> "$GITHUB_OUTPUT"
+
+      - name: Gate G0 — Port-map coverage
+        id: portmap
+        run: |
+          python3 cicd/scripts/lovable-sync/validate-port-map-coverage.py \
+            lovable DoEventsWEB/.lovable-port-map.json \
+            --manifest cicd/lovable-change-manifest.json \
+            --out cicd/port-map-result.json
+
+      - name: Comparacion diseño
+        id: design
+        run: |
+          python3 cicd/scripts/lovable-sync/compare-design-similarity.py \
+            lovable DoEventsWEB DoEventsWEB/.lovable-port-map.json cicd/design-comparison.json
+          python3 cicd/scripts/lovable-sync/merge-design-into-manifest.py \
+            cicd/lovable-change-manifest.json cicd/design-comparison.json lovable/lovable-change-manifest.json
+          SIM=$(python3 -c "import json; print(json.load(open('cicd/design-comparison.json'))['overallSimilarityPercent'])")
+          echo "similarity_percent=$SIM" >> "$GITHUB_OUTPUT"
+
+      - name: Determinar si agente es obligatorio
+        id: force
+        run: |
+          MANIFEST=cicd/lovable-change-manifest.json
+          SIM="${{ steps.design.outputs.similarity_percent }}"
+          REQUIRES=$(python3 -c "import json; m=json.load(open('$MANIFEST')); print(str(m.get('requiresAgent') or float('$SIM') < float('${{ env.DSF_TARGET_SIM }}')).lower())")
+          echo "requires_agent=$REQUIRES" >> "$GITHUB_OUTPUT"
+          echo "Agente obligatorio: $REQUIRES (similitud ${SIM}%)"
+
+      - name: Preparar artefactos agente
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          python3 cicd/scripts/lovable-sync/build-agent-context.py \
+            lovable DoEventsWEB cicd/lovable-change-manifest.json lovable/.ai/agent-sync-context.md
+          python3 cicd/scripts/lovable-sync/generate-agent-artifacts.py \
+            lovable DoEventsWEB cicd/lovable-change-manifest.json
+          DATE=$(date -u +%Y-%m-%d)
+          python3 cicd/scripts/lovable-sync/generate-design-report.py \
+            cicd/design-comparison.json "cicd/Reports/${DATE}-design-pre-${{ github.run_id }}.md" "${{ github.run_id }}-pre"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dsf-prepare-${{ github.run_id }}
+          path: |
+            cicd/design-comparison.json
+            cicd/lovable-change-manifest.json
+            cicd/port-map-result.json
+            cicd/Reports/*-design-pre-*.md
+
+      - name: Commit ReglasAgente
+        working-directory: DoEventsWEB
+        env:
+          WEB_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
+          WEB_CICD_BRANCH: ${{ steps.branch.outputs.web_branch }}
+        run: |
+          git config user.name "dsf-cicd-bot"
+          git config user.email "cicd@doeventsapp.com"
+          git add ReglasAgente/ .lovable-port-map.json docs/changes/ 2>/dev/null || true
+          git diff --cached --quiet || {
+            git commit -m "chore(dsf): preparar empalme Lovable→DEV [run:${{ github.run_id }}]"
+            git push "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git" "${WEB_CICD_BRANCH}"
+          }
+
+  adapt:
+    needs: prepare
+    if: |
+      needs.prepare.outputs.requires_agent == 'true' &&
+      (inputs.run_agent != 'false' && github.event.inputs.run_agent != 'false')
+    runs-on: ubuntu-latest
+    outputs:
+      agent_branch: ${{ steps.agent_run.outputs.agent_pushed_branch || needs.prepare.outputs.web_branch }}
+      similarity_percent_after: ${{ steps.design_post.outputs.similarity_percent }}
+      agent_ran: ${{ steps.agent_run.outcome == 'success' && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: cicd }
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DESIGN_REPO }}
+          ref: ${{ needs.prepare.outputs.lovable_sha }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: lovable
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          ref: ${{ needs.prepare.outputs.web_branch }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsWEB
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -r cicd/requirements.txt
+
+      - name: Agente Cursor — empalme obligatorio
+        id: agent_run
+        env:
+          CICD_DIR: ${{ github.workspace }}/cicd
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          LOVABLE_DIR: ${{ github.workspace }}/lovable
+          WEB_DIR: ${{ github.workspace }}/DoEventsWEB
+          LOVABLE_SHA: ${{ needs.prepare.outputs.lovable_sha }}
+          WEB_STARTING_REF: ${{ needs.prepare.outputs.web_branch }}
+          AGENT_BRANCH: ${{ needs.prepare.outputs.web_branch }}
+          AGENT_WAIT: "true"
+          AGENT_INCLUDE_BACK: ${{ (inputs.agent_mode == 'fullstack' || github.event.inputs.agent_mode == 'fullstack') && 'true' || 'false' }}
+          BUILD_COMMAND: npm run build:devaws
+        run: python3 cicd/scripts/lovable-sync/run-port-agent-api.py
+
+      - name: Gate G3 — Anti-mocks
+        if: steps.agent_run.outcome == 'success'
+        run: bash cicd/scripts/lovable-sync/validate-no-mocks.sh DoEventsWEB
+
+      - name: Gate G1 — Build DEV
+        if: steps.agent_run.outcome == 'success'
+        run: |
+          BRANCH="${{ steps.agent_run.outputs.agent_pushed_branch || needs.prepare.outputs.web_branch }}"
+          git clone --depth 1 --branch "$BRANCH" \
+            "https://x-access-token:${{ secrets.DOEVENTS_WEB_PAT }}@github.com/${{ env.WEB_REPO }}.git" verify
+          cd verify && npm ci && npm run build:devaws
+
+      - name: Comparacion post-agente
+        id: design_post
+        if: steps.agent_run.outcome == 'success'
+        run: |
+          BRANCH="${{ steps.agent_run.outputs.agent_pushed_branch || needs.prepare.outputs.web_branch }}"
+          git clone --depth 1 --branch "$BRANCH" \
+            "https://x-access-token:${{ secrets.DOEVENTS_WEB_PAT }}@github.com/${{ env.WEB_REPO }}.git" web-post
+          python3 cicd/scripts/lovable-sync/compare-design-similarity.py \
+            lovable web-post web-post/.lovable-port-map.json cicd/design-comparison-post.json
+          SIM=$(python3 -c "import json; print(json.load(open('cicd/design-comparison-post.json'))['overallSimilarityPercent'])")
+          echo "similarity_percent=$SIM" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.agent_run.outcome == 'success'
+        with:
+          name: dsf-adapt-${{ github.run_id }}
+          path: cicd/design-comparison-post.json
+
+  gap-loop:
+    needs: [prepare, adapt]
+    if: |
+      always() &&
+      needs.prepare.result == 'success' &&
+      (needs.adapt.result == 'success' || needs.adapt.result == 'skipped') &&
+      (inputs.run_gap_loop != 'false' && github.event.inputs.run_gap_loop != 'false')
+    runs-on: ubuntu-latest
+    outputs:
+      final_similarity: ${{ steps.loop.outputs.final_similarity }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: cicd }
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DESIGN_REPO }}
+          ref: ${{ needs.prepare.outputs.lovable_sha }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: lovable
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          ref: ${{ needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsWEB
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -r cicd/requirements.txt
+
+      - name: DSF gap loop (max 5 batches → 98%)
+        id: loop
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          AGENT_BRANCH: ${{ needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
+        run: |
+          set +e
+          python3 cicd/scripts/lovable-sync/dsf-gap-loop.py \
+            --lovable-dir lovable --web-dir DoEventsWEB --cicd-dir cicd \
+            --port-map DoEventsWEB/.lovable-port-map.json \
+            --target 98 --max-batches 5 --batch-size 20 --run-id ${{ github.run_id }}
+          RC=$?
+          FINAL=$(python3 -c "import json; from pathlib import Path; p=Path('cicd/gap-loop-summary-${{ github.run_id }}.json'); print(json.load(open(p))['finalSimilarity'] if p.exists() else '${{ needs.adapt.outputs.similarity_percent_after || needs.prepare.outputs.similarity_percent }}')")
+          echo "final_similarity=$FINAL" >> "$GITHUB_OUTPUT"
+          exit $RC
+
+  custom-gates:
+    needs: [prepare, adapt]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: cicd }
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          ref: ${{ needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsWEB
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -r cicd/requirements.txt
+      - run: python3 cicd/scripts/rules/run-custom-gates.py cicd/Reglas/custom --web-dir DoEventsWEB
+
+  deploy-dev:
+    needs: [prepare, adapt, gap-loop, custom-gates]
+    if: |
+      always() &&
+      needs.prepare.result == 'success' &&
+      needs.custom-gates.result == 'success' &&
+      (needs.gap-loop.result == 'success' || needs.gap-loop.result == 'skipped') &&
+      (needs.adapt.result == 'success' || needs.adapt.result == 'skipped') &&
+      (inputs.deploy_dev_after != 'false' && github.event.inputs.deploy_dev_after != 'false')
+    uses: ./.github/workflows/deploy-web-dev.yml
+    with:
+      web_ref: ${{ needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
+      lovable_sha: ${{ needs.prepare.outputs.lovable_sha }}
+      run_id: ${{ github.run_id }}
+    secrets: inherit
+
+  smoke:
+    needs: deploy-dev
+    if: needs.deploy-dev.result == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      smoke_ok: ${{ steps.smoke.outputs.ok }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: cicd }
+      - name: Gate G6 — Smoke DEV
+        id: smoke
+        run: |
+          bash cicd/scripts/smoke/dev-smoke.sh cicd/smoke-result-${{ github.run_id }}.json
+          OK=$(python3 -c "import json; print(str(json.load(open('cicd/smoke-result-${{ github.run_id }}.json'))['ok']).lower())")
+          echo "ok=$OK" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dsf-smoke-${{ github.run_id }}
+          path: cicd/smoke-result-*.json
+
+  validate-and-report:
+    needs: [prepare, adapt, gap-loop, deploy-dev, smoke, custom-gates]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: cicd }
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: dsf-prepare-${{ github.run_id }}
+          path: cicd/artifacts-pre
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: dsf-adapt-${{ github.run_id }}
+          path: cicd/artifacts-adapt
+
+      - name: Preparar archivos validación
+        run: |
+          cp cicd/artifacts-pre/design-comparison.json cicd/design-comparison.json 2>/dev/null || true
+          cp cicd/artifacts-adapt/design-comparison-post.json cicd/design-comparison-post.json 2>/dev/null || true
+          [ -f cicd/design-comparison-post.json ] || cp cicd/design-comparison.json cicd/design-comparison-post.json
+
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+
+      - name: Gate final — validate-pipeline-sync (bloqueante)
+        id: validate
+        run: |
+          AGENT_RAN="${{ needs.adapt.result == 'success' && 'true' || 'false' }}"
+          DEPLOY_RAN="${{ needs.deploy-dev.result == 'success' && 'true' || 'false' }}"
+          SMOKE_RAN="${{ needs.smoke.result == 'success' && 'true' || (needs.deploy-dev.result != 'success' && 'false' || 'false') }}"
+          SMOKE_OK="${{ needs.smoke.outputs.smoke_ok || 'false' }}"
+          PORT_OK=$(python3 -c "import json; from pathlib import Path; p=Path('cicd/artifacts-pre/port-map-result.json'); print(str(json.load(open(p))['ok']).lower() if p.exists() else 'true')")
+          python3 cicd/scripts/lovable-sync/validate-pipeline-sync.py \
+            --design-before cicd/design-comparison.json \
+            --design-after cicd/design-comparison-post.json \
+            --manifest cicd/artifacts-pre/lovable-change-manifest.json \
+            --lovable-sha "${{ needs.prepare.outputs.lovable_sha }}" \
+            --agent-ran "$AGENT_RAN" --deploy-ran "$DEPLOY_RAN" \
+            --smoke-ran "$SMOKE_RAN" --smoke-ok "$SMOKE_OK" \
+            --port-map-ok "$PORT_OK" --cicd-dir cicd --blocking true \
+            --min-similarity 98 | tee cicd/validation-result.json
+          python3 -c "import json,sys; sys.exit(0 if json.load(open('cicd/validation-result.json'))['ok'] else 1)"
+
+      - name: Generar reporte DSF
+        if: always()
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          python3 cicd/scripts/lovable-sync/generate-sync-report.py \
+            --run-id ${{ github.run_id }} \
+            --lovable-sha "${{ needs.prepare.outputs.lovable_sha }}" \
+            --manifest cicd/artifacts-pre/lovable-change-manifest.json \
+            --design-before cicd/design-comparison.json \
+            --design-after cicd/design-comparison-post.json \
+            --validation cicd/validation-result.json \
+            --smoke cicd/smoke-result-${{ github.run_id }}.json \
+            --port-map cicd/artifacts-pre/port-map-result.json \
+            --out-md "cicd/Reports/${DATE}-dsf-sync-${{ github.run_id }}.md" \
+            --out-json "cicd/Reports/${DATE}-dsf-sync-${{ github.run_id }}.json" || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dsf-report-${{ github.run_id }}
+          path: |
+            cicd/Reports/*-dsf-sync-*
+            cicd/validation-result.json
+
+      - name: Resumen operador
+        if: always()
+        run: |
+          echo "## DSF Sync DEV — ${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Paso | Estado |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Lovable SHA | \`${{ needs.prepare.outputs.lovable_sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Similitud pre | ${{ needs.prepare.outputs.similarity_percent }}% |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Agente | ${{ needs.adapt.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Gap loop | ${{ needs.gap-loop.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Deploy DEV | ${{ needs.deploy-dev.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Smoke | ${{ needs.smoke.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| QA promoción | **INHABILITADA** |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "DEV: https://dev.doeventsapp.com" >> "$GITHUB_STEP_SUMMARY"

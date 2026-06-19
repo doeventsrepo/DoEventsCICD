@@ -1,0 +1,7 @@
+# Regla custom DSF — ejemplo bloqueante
+
+name: no-hardcoded-api-urls
+description: Prohíbe URLs de API hardcodeadas fuera de config/environments
+gate: block
+scanPath: packages/shell/src/pages
+forbidPattern: https?://api(-qa|-dev)?\.doeventsapp\.com

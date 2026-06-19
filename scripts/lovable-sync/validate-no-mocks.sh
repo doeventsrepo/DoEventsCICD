@@ -1,21 +1,50 @@
 #!/usr/bin/env bash
-# Valida que no haya mocks nuevos en runtime (REGLAS §7)
+# DSF Gate G3 — Anti-mocks en runtime WEB (excluye lovable/ como referencia de diseño)
 set -euo pipefail
 
 WEB_DIR="${1:-.}"
-PAGES="${WEB_DIR}/packages/shell/src/pages"
+SHELL_SRC="${WEB_DIR}/packages/shell/src"
+SHARED_SRC="${WEB_DIR}/packages/shared/src"
 
-if [ ! -d "$PAGES" ]; then
-  echo "Sin directorio pages/ — skip"
-  exit 0
+PATTERNS='mockEvents|mockUsers|mockTickets|mockOrders|mockReservations|mockData|hardcodedEvents|hardcodedUsers|sampleData|dummyData|fakeData|placeholderEvents'
+
+scan_dir() {
+  local dir="$1"
+  local label="$2"
+  local exclude="$3"
+  if [ ! -d "$dir" ]; then
+    echo "SKIP: sin $label"
+    return 0
+  fi
+  local hits
+  hits=$(grep -RInE "$PATTERNS" "$dir" 2>/dev/null \
+    | grep -vE '\.test\.|__tests__|/test/|/lovable/|mockServiceWorker|msw' \
+    | grep -vE "$exclude" || true)
+  if [ -n "$hits" ]; then
+    echo "ERROR: mocks o datos hardcodeados en $label:" >&2
+    echo "$hits" >&2
+    return 1
+  fi
+  echo "OK: $label sin mocks prohibidos"
+}
+
+fail=0
+scan_dir "$SHELL_SRC" "shell/src (excepto lovable/)" "lovable" || fail=1
+scan_dir "${SHELL_SRC}/lovable-bridge" "lovable-bridge/" "" || fail=1
+scan_dir "$SHARED_SRC/api" "shared/api/" "" || fail=1
+
+# Prohibir import directo de mockData desde pages
+PAGES="${SHELL_SRC}/pages"
+if [ -d "$PAGES" ]; then
+  import_hits=$(grep -RInE "from ['\"].*mock|import.*mockData|import.*sampleData" "$PAGES" 2>/dev/null \
+    | grep -vE '\.test\.|__tests__' || true)
+  if [ -n "$import_hits" ]; then
+    echo "ERROR: imports de mocks en pages/:" >&2
+    echo "$import_hits" >&2
+    fail=1
+  else
+    echo "OK: pages/ sin imports de mocks"
+  fi
 fi
 
-PATTERNS='mockEvents|mockUsers|mockTickets|mockOrders|mockReservations|hardcodedEvents|hardcodedUsers|sampleData|dummyData'
-
-if grep -RInE "$PATTERNS" "$PAGES" 2>/dev/null | grep -vE '\.test\.|__tests__|/test/'; then
-  echo "ERROR: mocks o datos hardcodeados detectados en pages/" >&2
-  exit 1
-fi
-
-echo "OK: sin mocks prohibidos en pages/"
-exit 0
+exit $fail

@@ -1,0 +1,34 @@
+# Alias — delega a lovable-gap-empalme.yml (legacy) o usar gap-loop en dsf-sync-dev.yml
+name: DSF Gap Empalme (DEV)
+
+on:
+  workflow_dispatch:
+    inputs:
+      lovable_ref:
+        default: main
+      web_cicd_branch:
+        default: feature/cicd/dev-automation
+      batch_size:
+        default: '20'
+      batch_index:
+        default: '1'
+      run_agent:
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+      deploy_dev_after:
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+
+jobs:
+  gap:
+    uses: ./.github/workflows/lovable-gap-empalme.yml
+    with:
+      lovable_ref: ${{ inputs.lovable_ref }}
+      web_cicd_branch: ${{ inputs.web_cicd_branch }}
+      batch_size: ${{ inputs.batch_size }}
+      batch_index: ${{ inputs.batch_index }}
+      run_agent: ${{ inputs.run_agent }}
+      deploy_dev_after: ${{ inputs.deploy_dev_after }}
+    secrets: inherit

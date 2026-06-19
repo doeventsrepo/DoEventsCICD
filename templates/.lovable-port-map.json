@@ -1,31 +1,20 @@
 {
-  "version": "1.0",
-  "description": "Mapeo de rutas Lovable (discover-joyful-feed) → DoEventsWEB",
+  "version": "2.0",
+  "description": "Mapeo Lovable → DoEventsWEB (DSF). Cobertura obligatoria para archivos UI cambiados.",
   "mapping": [
-    {
-      "lovable": "src/components/",
-      "web": "packages/shell/src/lovable/components/"
-    },
-    {
-      "lovable": "src/pages/",
-      "web": "packages/shell/src/pages/"
-    },
-    {
-      "lovable": "src/contexts/",
-      "web": "packages/shell/src/lovable/contexts/"
-    },
-    {
-      "lovable": "src/hooks/",
-      "web": "packages/shell/src/lovable/hooks/"
-    },
-    {
-      "lovable": "public/",
-      "web": "packages/shell/public/"
-    },
-    {
-      "lovable": "reglasActuacion/",
-      "web": "reglasActuacion/"
-    }
+    { "lovable": "src/components/", "web": "packages/shell/src/lovable/components/" },
+    { "lovable": "src/pages/", "web": "packages/shell/src/pages/" },
+    { "lovable": "src/pages/Index.tsx", "web": "packages/shell/src/pages/EventsPage.tsx", "note": "Home feed" },
+    { "lovable": "src/pages/Login.tsx", "web": "packages/mfe-auth/src/pages/LoginPage.tsx", "note": "Auth MFE" },
+    { "lovable": "src/pages/SignUp.tsx", "web": "packages/mfe-auth/src/pages/SignUpPage.tsx" },
+    { "lovable": "src/pages/ForgotPassword.tsx", "web": "packages/mfe-auth/src/pages/ForgotPasswordPage.tsx" },
+    { "lovable": "src/pages/ResetPassword.tsx", "web": "packages/mfe-auth/src/pages/ResetPasswordPage.tsx" },
+    { "lovable": "src/pages/VenueDetail.tsx", "web": "packages/shell/src/pages/PlaceDetailPage.tsx" },
+    { "lovable": "src/pages/EventPublished.tsx", "web": "packages/shell/src/pages/EventDetailPage.tsx" },
+    { "lovable": "src/contexts/", "web": "packages/shell/src/lovable/contexts/" },
+    { "lovable": "src/hooks/", "web": "packages/shell/src/lovable/hooks/" },
+    { "lovable": "public/", "web": "packages/shell/public/" },
+    { "lovable": "reglasActuacion/", "web": "reglasActuacion/" }
   ],
   "forbidden": [
     "src/integrations/supabase/",
@@ -36,5 +25,5 @@
     "ReglasAgente/",
     "docs/changes/"
   ],
-  "notes": "El agente adapta via lovable-bridge; no port determinístico de componentes completos."
+  "notes": "DSF: el agente empalma via lovable-bridge + @doevents/shared. Sin copy-paste literal."
 }

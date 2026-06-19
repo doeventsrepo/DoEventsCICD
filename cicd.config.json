@@ -1,7 +1,8 @@
 {
-  "version": "2.0",
+  "version": "3.0",
+  "framework": "DSF",
   "project": "DoEvents",
-  "description": "Orquestacion CI/CD: Lovable → Cursor Agent (empalme) → DoEventsWEB/Back → AWS DEV (sa-east-1). QA solo manual.",
+  "description": "Design Sync Framework — Lovable → empalme → gates bloqueantes → DEV. QA promoción inhabilitada hasta ciclo DEV validado.",
   "repositories": {
     "cicd": "doeventsrepo/DoEventsCICD",
     "design": "doeventsrepo/discover-joyful-feed",
@@ -16,10 +17,8 @@
     "cicdBack": "feature/cicd/dev-automation",
     "cicdIa": "feature/cicd/dev-automation",
     "cicdSelf": "main",
-    "aiFeaturePrefix": "feature/ai/",
-    "lovableFeaturePrefix": "feature/lovable/",
     "agentOutputBranch": "feature/cicd/dev-automation",
-    "note": "Automatizacion SOLO en feature/cicd/dev-automation. No crear ramas feature/lovable/adapt-*. Prohibido push/checkout de develop, release o main en WEB/Back."
+    "note": "Automatización SOLO en feature/cicd/dev-automation. Prohibido push a develop/release/main."
   },
   "paths": {
     "lovableRules": "reglasActuacion",
@@ -27,38 +26,82 @@
     "lovableUi": "src",
     "webLovable": "packages/shell/src/lovable",
     "webBridge": "packages/shell/src/lovable-bridge",
+    "webPages": "packages/shell/src/pages",
+    "webShared": "packages/shared",
     "cicdReglas": "Reglas",
     "cicdReglasOperativas": "Reglas/operativas",
-    "cicdReglasArtefactos": "Reglas/artefactos-web",
-    "cicdScripts": "scripts/lovable-sync"
+    "cicdReglasCustom": "Reglas/custom",
+    "cicdScripts": "scripts/lovable-sync",
+    "dsfCore": "dsf",
+    "reportsDir": "Reports",
+    "artifactsDir": "artifacts"
   },
-  "awsDev": {
-    "region": "sa-east-1",
-    "stage": "dev",
-    "web": {
-      "domain": "dev.doeventsapp.com",
-      "bucket": "doevents-web-dev",
-      "cloudFrontDistributionId": "E1AIDTCT83PAW5"
+  "dsf": {
+    "targetSimilarityPercent": 98,
+    "maxGapBatches": 5,
+    "gapBatchSize": 20,
+    "autoChainGapEmpalme": true,
+    "forceAgentOnChanges": true,
+    "forceAgentBelowSimilarity": true,
+    "blockingGates": true,
+    "requireSmokeTests": true,
+    "requirePortMapCoverage": true,
+    "publishBuildArtifact": true,
+    "qaPromotion": {
+      "enabled": false,
+      "reason": "QA inhabilitado hasta validar ciclo DEV completo (sincronización + gates + smoke)",
+      "manualToken": "DEPLOY_QA_MANUAL",
+      "targetBranch": "develop"
     },
-    "api": {
-      "domain": "api-dev.doeventsapp.com"
-    },
-    "websocket": {
-      "domain": "ws-dev.doeventsapp.com"
-    },
-    "dynamoDbSuffix": "-dev",
-    "buildCommand": "npm run build:devaws",
-    "buildMode": "devaws"
+    "artifactPromotion": {
+      "enabled": false,
+      "note": "Infraestructura lista; promoción QA deshabilitada por qaPromotion.enabled=false",
+      "bucket": "doevents-cicd-artifacts-dev",
+      "region": "sa-east-1"
+    }
   },
-  "awsQa": {
-    "manualOnly": true,
-    "region": "us-east-2",
-    "web": {
-      "domain": "qa.doeventsapp.com",
-      "bucket": "doevents-web-qa",
-      "cloudFrontDistributionId": "E3UV9NHXADGSAJ"
-    },
-    "note": "NO usar en pipelines automaticos. Solo workflow_dispatch con confirmacion explicita."
+  "cloud": {
+    "defaultProvider": "aws",
+    "providers": {
+      "aws": {
+        "dev": {
+          "region": "sa-east-1",
+          "stage": "dev",
+          "web": {
+            "domain": "dev.doeventsapp.com",
+            "bucket": "doevents-web-dev",
+            "cloudFrontDistributionId": "E1AIDTCT83PAW5"
+          },
+          "api": { "domain": "api-dev.doeventsapp.com" },
+          "websocket": { "domain": "ws-dev.doeventsapp.com" },
+          "dynamoDbSuffix": "-dev",
+          "buildCommand": "npm run build:devaws",
+          "buildMode": "devaws"
+        },
+        "qa": {
+          "region": "us-east-2",
+          "web": {
+            "domain": "qa.doeventsapp.com",
+            "bucket": "doevents-web-qa",
+            "cloudFrontDistributionId": "E3UV9NHXADGSAJ"
+          },
+          "manualOnly": true
+        }
+      },
+      "azure": {
+        "dev": {
+          "region": "eastus",
+          "note": "Provider stub — configurar storageAccount y cdnEndpoint al migrar",
+          "web": {
+            "domain": "dev.example.com",
+            "storageAccount": "CONFIGURE_AZURE_STORAGE",
+            "cdnEndpoint": "CONFIGURE_AZURE_CDN"
+          },
+          "buildCommand": "npm run build:devaws",
+          "buildMode": "devaws"
+        }
+      }
+    }
   },
   "agent": {
     "cursorApi": "https://api.cursor.com/v1/agents",
@@ -84,7 +127,8 @@
     "validateMocks": true,
     "validateSecrets": true,
     "deployAfterAgentBranch": true,
-    "gapEmpalmeWorkflow": "lovable-gap-empalme.yml",
+    "gapEmpalmeWorkflow": "dsf-gap-empalme.yml",
+    "mainWorkflow": "dsf-sync-dev.yml",
     "gapEmpalmeDefaultBatchSize": 20
   }
 }

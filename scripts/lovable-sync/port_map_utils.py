@@ -5,8 +5,12 @@ import json
 from pathlib import Path
 
 
+def load_port_map_data(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def load_port_map(path: Path) -> list[dict]:
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = load_port_map_data(path)
     items: list[dict] = []
     for raw in data.get("mapping", []):
         lovable = raw["lovable"].replace("\\", "/")
@@ -38,6 +42,19 @@ def map_lovable_to_web(relative: str, items: list[dict]) -> str | None:
         elif rel.startswith(item["prefixLovable"]) and item["prefixLovable"].startswith("src/"):
             return item["prefixWeb"] + rel[len(item["prefixLovable"]) :]
     return None
+
+
+def is_excluded(relative: str, port_map_data: dict) -> bool:
+    """True si la ruta Lovable está en exclude/forbidden del port-map."""
+    rel = relative.replace("\\", "/")
+    for raw in port_map_data.get("forbidden", []) + port_map_data.get("exclude", []):
+        pattern = raw.replace("\\", "/").rstrip("*")
+        if raw.endswith("/**") or raw.endswith("*"):
+            if rel.startswith(pattern):
+                return True
+        elif rel == pattern or rel.startswith(f"{pattern}/"):
+            return True
+    return False
 
 
 def mapping_for(relative: str, items: list[dict]) -> dict | None:

@@ -5,7 +5,7 @@ on:
   workflow_call:
     inputs:
       phase:
-        description: pre-adapt | adapt | post-adapt | all
+        description: pre-adapt | adapt | gates | post-adapt | all
         type: string
         default: all
       run_id:
@@ -71,6 +71,7 @@ jobs:
             cp cicd/artifacts-pre/design-comparison.json cicd/design-comparison.json
           fi
           if [ -f cicd/artifacts-pre/lovable-change-manifest.json ]; then
+            cp cicd/artifacts-pre/lovable-change-manifest.json cicd/lovable-change-manifest.json
             cp cicd/artifacts-pre/lovable-change-manifest.json lovable/lovable-change-manifest.json
           fi
 
@@ -88,6 +89,7 @@ jobs:
           DESIGN_COMPARISON: ${{ github.workspace }}/cicd/design-comparison.json
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           DSF_AGENT_DRY_RUN: ${{ inputs.dry_run == 'true' && '1' || '0' }}
+          DSF_CHANGE_MANIFEST: ${{ github.workspace }}/cicd/lovable-change-manifest.json
           GITHUB_RUN_ID: ${{ inputs.run_id }}
         run: |
           ARGS="--phase ${{ inputs.phase }} --run-id ${{ inputs.run_id }}"

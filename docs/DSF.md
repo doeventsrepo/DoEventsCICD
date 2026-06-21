@@ -58,6 +58,34 @@ cd DoEventsCICD
 ./scripts/dsf promote-qa   # falla — QA inhabilitado
 ```
 
+## Entorno local (sin GitHub Actions)
+
+Itera en `simulation/` con copia aislada de DoEventsWEB — **no toca repos productivos ni dispara pipelines DEV**.
+
+```powershell
+# Desde monorepo
+cd C:\DoEvents\AplicacionWEB
+.\run-dsf-local.ps1                    # ciclo: prepare → gap(dry) → build → validate
+.\run-dsf-local.ps1 -Phase prepare     # solo comparación + gates G0
+.\run-dsf-local.ps1 -Phase gap         # gap loop sin agente (o -LiveAgent con CURSOR_API_KEY)
+.\run-dsf-local.ps1 -Phase build       # npm run build:devaws en sandbox
+
+# Batería fixtures Lovable (v13–v17 + discover-joyful-feed)
+cd DoEventsCICD\simulation
+.\run-simulation.ps1
+```
+
+Config: `simulation/local.config.json` (rutas a discover-joyful-feed, DoEventsWEB, DoEventsBack).
+Secretos opcionales: copiar `simulation/local.env.example` → `local.env`.
+
+| Modo | Git push | Deploy AWS | Agente |
+|------|----------|----------|--------|
+| Local default | No | No | Dry-run |
+| `--live-agent` | Sí (GitHub) | No | Cursor API |
+| `--deploy` + credenciales | No | Sí | — |
+
+Salida: `simulation/output/dsf-local/<run-id>/`
+
 ## Cloud providers
 
 | Provider | Script | Entorno auto |

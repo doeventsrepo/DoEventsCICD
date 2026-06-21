@@ -79,6 +79,9 @@ def wait_run(agent_id: str, run_id: str) -> dict:
 
 
 def main() -> int:
+    if os.environ.get("DSF_BLOCK_GITHUB") == "1" or os.environ.get("DSF_LOCAL_MODE") == "1":
+        print("ERROR: gap agent bloqueado en modo local. Usa simulation/scripts/local-apply-empalme.py", file=sys.stderr)
+        return 1
     if not os.environ.get("CURSOR_API_KEY"):
         print("ERROR: CURSOR_API_KEY requerido", file=sys.stderr)
         return 1

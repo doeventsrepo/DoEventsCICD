@@ -1,7 +1,10 @@
 # Prompt — Configurar reglas DSF en Lovable (discover-joyful-feed)
 
 Copia y pega el bloque **PROMPT COMPLETO** en Lovable (chat del proyecto) o en Cursor al editar `discover-joyful-feed`.  
-Objetivo: dejar configuradas las **cinco capas de reglas** que alimentan el pipeline DSF hacia DoEventsWEB (DEV automático).
+Objetivo: dejar configuradas las **seis capas de reglas** que alimentan el pipeline DSF.
+
+> **Actualización v3.2:** usar también `docs/PROMPT_ESTRUCTURAR_LOVABLE_DSF.md` para
+> alinear Lovable con agentes Python + capas empalme (diseño, formulario, campos, lógica, navegación, backend).
 
 ---
 

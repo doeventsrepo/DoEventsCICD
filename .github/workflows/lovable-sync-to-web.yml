@@ -52,6 +52,6 @@ jobs:
       agent_mode: ${{ inputs.agent_mode || 'frontend-only' }}
       lovable_ref: ${{ inputs.lovable_ref || 'main' }}
       deploy_dev_after: ${{ inputs.deploy_dev_after || 'true' }}
-      run_gap_loop: ${{ inputs.run_gap_empalme_after || 'true' }}
+      run_gap_loop: ${{ inputs.run_gap_empalme_after || 'false' }}
       web_cicd_branch: ${{ inputs.web_cicd_branch || 'feature/cicd/dev-automation' }}
     secrets: inherit

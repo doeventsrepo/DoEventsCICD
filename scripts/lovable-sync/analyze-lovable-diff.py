@@ -14,6 +14,11 @@ WATCH_PREFIXES = (
     "public/",
     "reglasActuacion/",
     "reglasDiseno/",
+    "reglasEmpalme/",
+    "reglasCalidad/",
+    "contratosBackend/",
+    "reports/dsf/",
+    "decision-log.md",
     "tailwind.config.ts",
     "index.html",
 )
@@ -56,6 +61,16 @@ def classify(path: str) -> str:
         return "rules"
     if path.startswith("reglasDiseno/"):
         return "design-rules"
+    if path.startswith("reglasEmpalme/"):
+        return "empalme-rules"
+    if path.startswith("reglasCalidad/"):
+        return "quality-rules"
+    if path.startswith("contratosBackend/"):
+        return "backend-contracts"
+    if path.startswith("reports/dsf/"):
+        return "dsf-report"
+    if path == "decision-log.md":
+        return "decision-log"
     if path.startswith("src/") or path.startswith("public/"):
         return "ui"
     return "config"

@@ -109,6 +109,25 @@ def main() -> int:
     if ui_files:
         sections.append("## Archivos UI modificados (src/)")
         sections.append("")
+        try:
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from empalme_rules import build_change_manifest_enriched
+
+            ui_paths = [e["path"] if isinstance(e, dict) else str(e) for e in ui_files]
+            enriched = build_change_manifest_enriched(lovable, ui_paths)
+            sections.append("### Enrutamiento agentes (capas DSF)")
+            sections.append("")
+            sections.append("| Archivo | Capas | Agente | Complejidad |")
+            sections.append("|---------|-------|--------|-------------|")
+            for row in enriched:
+                layers = ", ".join(row.get("layers") or [])
+                sections.append(
+                    f"| `{row.get('lovablePath', '')}` | {layers or '—'} | "
+                    f"{row.get('agentTier', 'python')} | {row.get('complexity', 'simple')} |"
+                )
+            sections.append("")
+        except Exception:
+            pass
         for entry in ui_files:
             rel = entry["path"] if isinstance(entry, dict) else str(entry)
             sections.append(f"- `{rel}` (`{entry.get('status', 'M') if isinstance(entry, dict) else 'M'}`)")

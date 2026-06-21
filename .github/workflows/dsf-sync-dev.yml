@@ -24,8 +24,13 @@ on:
         type: choice
         options: ['true', 'false']
       run_gap_loop:
-        description: Encadenar gap-empalme hasta 98% (max 5 batches)
-        default: 'true'
+        description: 'OBSOLETO — gap loop desactivado (usar empalme Python-first)'
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+      cursor_fallback:
+        description: Escalado único Cursor API (max 5 archivos, sin loop) — requiere aprobación
+        default: 'false'
         type: choice
         options: ['true', 'false']
       web_cicd_branch:
@@ -48,7 +53,10 @@ on:
         default: 'true'
       run_gap_loop:
         type: string
-        default: 'true'
+        default: 'false'
+      cursor_fallback:
+        type: string
+        default: 'false'
       web_cicd_branch:
         type: string
         default: feature/cicd/dev-automation
@@ -132,10 +140,15 @@ jobs:
           python-version: '3.11'
       - run: pip install -r cicd/requirements.txt
 
-      - name: Validar reglas YAML + ReglasAgente + CICD
+      - name: Bootstrap DSF index (component-index + port-map)
         run: |
-          python3 cicd/scripts/lovable-sync/validate-rules.py lovable/reglasActuacion
-          python3 cicd/scripts/lovable-sync/validate-design-rules.py lovable/reglasDiseno
+          python3 cicd/scripts/lovable-sync/bootstrap-dsf-index.py \
+            --lovable-dir lovable --web-dir DoEventsWEB
+
+      - name: Validar estructura DSF v1.1 (strict)
+        run: |
+          python3 cicd/scripts/lovable-sync/validate-dsf-structure.py lovable --strict
+          python3 cicd/scripts/agents/run-rules-validation-agent.py lovable --strict
           python3 cicd/scripts/lovable-sync/validate-agent-gate.py DoEventsWEB
           python3 cicd/scripts/lovable-sync/validate-reglas-cicd.py cicd
 
@@ -151,6 +164,42 @@ jobs:
           HAS=$(python3 -c "import json; m=json.load(open('../cicd/lovable-change-manifest.json')); print('true' if m.get('hasUiChanges') or m.get('hasRulesChanges') else 'false')")
           echo "sha=$LOVABLE_SHA" >> "$GITHUB_OUTPUT"
           echo "has_changes=$HAS" >> "$GITHUB_OUTPUT"
+
+      - name: Diff intelligence (agente 0)
+        run: |
+          python3 cicd/scripts/agents/run-diff-intelligence-agent.py \
+            --lovable-dir lovable --web-dir DoEventsWEB \
+            --change-manifest cicd/lovable-change-manifest.json \
+            --run-id ${{ github.run_id }} || true
+
+      - name: Port-map resolver (agente 2)
+        run: |
+          DIFF="cicd/artifacts/${{ github.run_id }}/dsf-diff-intelligence-${{ github.run_id }}.json"
+          EXTRA=""
+          [ -f "$DIFF" ] && EXTRA="--diff-intelligence $DIFF"
+          python3 cicd/scripts/agents/run-port-map-resolver-agent.py \
+            --lovable-dir lovable --web-dir DoEventsWEB \
+            --change-manifest cicd/lovable-change-manifest.json \
+            --run-id ${{ github.run_id }} $EXTRA
+
+      - name: Idempotency guard (agente 2.3)
+        run: |
+          python3 cicd/scripts/agents/run-idempotency-guard-agent.py \
+            --lovable-dir lovable --run-id ${{ github.run_id }}
+
+      - name: Conflict resolver (agente 2.7)
+        run: |
+          python3 cicd/scripts/agents/run-conflict-resolver-agent.py \
+            --lovable-dir lovable --web-dir DoEventsWEB \
+            --change-manifest cicd/lovable-change-manifest.json \
+            --run-id ${{ github.run_id }}
+
+      - name: Sync-readiness gate (agente 2.5)
+        run: |
+          python3 cicd/scripts/agents/run-sync-readiness-gate-agent.py \
+            --lovable-dir lovable --web-dir DoEventsWEB \
+            --change-manifest cicd/lovable-change-manifest.json \
+            --run-id ${{ github.run_id }}
 
       - name: Gate G0 — Port-map coverage
         id: portmap
@@ -235,9 +284,9 @@ jobs:
     continue-on-error: true
     runs-on: ubuntu-latest
     outputs:
-      agent_branch: ${{ steps.agent_run.outputs.agent_pushed_branch || needs.prepare.outputs.web_branch }}
+      agent_branch: ${{ needs.prepare.outputs.web_branch }}
       similarity_percent_after: ${{ steps.design_post.outputs.similarity_percent || needs.prepare.outputs.similarity_percent }}
-      agent_ran: ${{ steps.agent_run.outcome == 'success' && 'true' || 'false' }}
+      agent_ran: ${{ steps.empalme_python.outcome == 'success' && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with: { path: cicd }
@@ -255,60 +304,81 @@ jobs:
           path: DoEventsWEB
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
       - run: pip install -r cicd/requirements.txt
 
-      - name: Agente Cursor — empalme obligatorio
-        id: agent_run
+      - name: Manifiesto de cambios (desde prepare)
+        uses: actions/download-artifact@v4
+        with:
+          name: dsf-prepare-${{ github.run_id }}
+          path: cicd/artifacts-pre
+
+      - name: Empalme Python-first (sin loop)
+        id: empalme_python
         env:
           CICD_DIR: ${{ github.workspace }}/cicd
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           LOVABLE_DIR: ${{ github.workspace }}/lovable
           WEB_DIR: ${{ github.workspace }}/DoEventsWEB
-          LOVABLE_SHA: ${{ needs.prepare.outputs.lovable_sha }}
-          WEB_STARTING_REF: ${{ needs.prepare.outputs.web_branch }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           AGENT_BRANCH: ${{ needs.prepare.outputs.web_branch }}
-          AGENT_WAIT: "true"
-          AGENT_INCLUDE_BACK: ${{ (inputs.agent_mode == 'fullstack' || github.event.inputs.agent_mode == 'fullstack') && 'true' || 'false' }}
-          BUILD_COMMAND: npm run build:devaws
-        run: python3 cicd/scripts/lovable-sync/run-port-agent-api.py
+          WEB_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
+        run: |
+          MANIFEST=cicd/artifacts-pre/lovable-change-manifest.json
+          python3 cicd/scripts/lovable-sync/empalme-orchestrator.py \
+            --lovable-dir lovable --web-dir DoEventsWEB --cicd-dir cicd \
+            --port-map DoEventsWEB/.lovable-port-map.json \
+            --change-manifest "$MANIFEST" \
+            --run-id ${{ github.run_id }} \
+            --cursor-fallback
+          cd DoEventsWEB
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "Sin cambios WEB tras empalme Python"
+          else
+            git commit -m "feat(dsf): empalme python-first run ${{ github.run_id }} [lovable:${{ needs.prepare.outputs.lovable_sha }}]"
+            git push origin HEAD:${{ needs.prepare.outputs.web_branch }}
+          fi
 
       - name: Gate G3 — Anti-mocks
-        if: steps.agent_run.outcome == 'success'
-        run: |
-          bash cicd/scripts/lovable-sync/validate-no-mocks.sh DoEventsWEB || echo "AVISO: anti-mocks - el agente debe corregir en siguiente batch"
+        if: steps.empalme_python.outcome == 'success'
+        run: bash cicd/scripts/lovable-sync/validate-no-mocks.sh DoEventsWEB
 
       - name: Gate G1 — Build DEV
-        if: steps.agent_run.outcome == 'success'
+        if: steps.empalme_python.outcome == 'success'
         run: |
-          BRANCH="${{ steps.agent_run.outputs.agent_pushed_branch || needs.prepare.outputs.web_branch }}"
-          git clone --depth 1 --branch "$BRANCH" \
-            "https://x-access-token:${{ secrets.DOEVENTS_WEB_PAT }}@github.com/${{ env.WEB_REPO }}.git" verify
-          cd verify && npm ci && npm run build:devaws
+          cd DoEventsWEB && npm ci && npm run build:devaws
 
-      - name: Comparacion post-agente
+      - name: Comparacion post-empalme
         id: design_post
-        if: steps.agent_run.outcome == 'success'
+        if: steps.empalme_python.outcome == 'success'
         run: |
-          BRANCH="${{ steps.agent_run.outputs.agent_pushed_branch || needs.prepare.outputs.web_branch }}"
-          git clone --depth 1 --branch "$BRANCH" \
-            "https://x-access-token:${{ secrets.DOEVENTS_WEB_PAT }}@github.com/${{ env.WEB_REPO }}.git" web-post
           python3 cicd/scripts/lovable-sync/compare-design-similarity.py \
-            lovable web-post web-post/.lovable-port-map.json cicd/design-comparison-post.json
+            lovable DoEventsWEB DoEventsWEB/.lovable-port-map.json cicd/design-comparison-post.json
           SIM=$(python3 -c "import json; print(json.load(open('cicd/design-comparison-post.json'))['overallSimilarityPercent'])")
           echo "similarity_percent=$SIM" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
-        if: steps.agent_run.outcome == 'success'
+        if: steps.empalme_python.outcome == 'success'
         with:
           name: dsf-adapt-${{ github.run_id }}
-          path: cicd/design-comparison-post.json
+          path: |
+            cicd/design-comparison-post.json
+            cicd/empalme-report-*.json
+            cicd/empalme-summary-*.json
+            cicd/dsf-change-manifest-*.json
+            cicd/Reports/*-empalme-*.md
 
   gap-loop:
     needs: [prepare, adapt]
     if: |
+      false &&
       always() &&
       needs.prepare.result == 'success' &&
-      (inputs.run_gap_loop != 'false' && github.event.inputs.run_gap_loop != 'false')
+      (inputs.run_gap_loop == 'true' && github.event.inputs.run_gap_loop == 'true')
     runs-on: ubuntu-latest
     outputs:
       final_similarity: ${{ steps.loop.outputs.final_similarity }}
@@ -385,8 +455,21 @@ jobs:
       - run: pip install -r cicd/requirements.txt
       - run: python3 cicd/scripts/rules/run-custom-gates.py cicd/Reglas/custom --web-dir DoEventsWEB
 
-  agents-post-adapt:
+  agents-gates:
     needs: [prepare, adapt, gap-loop]
+    if: always() && needs.prepare.result == 'success'
+    uses: ./.github/workflows/dsf-orchestrator.yml
+    with:
+      phase: gates
+      run_id: ${{ github.run_id }}-gates
+      lovable_ref: ${{ needs.prepare.outputs.lovable_sha }}
+      web_branch: ${{ needs.adapt.result == 'success' && needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
+      dry_run: 'false'
+      skip_adapt: 'true'
+    secrets: inherit
+
+  agents-post-adapt:
+    needs: [prepare, adapt, gap-loop, agents-gates]
     if: always() && needs.prepare.result == 'success'
     uses: ./.github/workflows/dsf-orchestrator.yml
     with:
@@ -399,7 +482,7 @@ jobs:
     secrets: inherit
 
   deploy-dev:
-    needs: [prepare, adapt, gap-loop, custom-gates, agents-post-adapt]
+    needs: [prepare, adapt, gap-loop, custom-gates, agents-gates, agents-post-adapt]
     if: |
       always() &&
       needs.prepare.result == 'success' &&

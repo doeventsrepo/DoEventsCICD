@@ -63,6 +63,16 @@ def cmd_smoke(args: argparse.Namespace) -> int:
     return subprocess.run(["bash", str(script), args.out or "/tmp/dsf-smoke.json"]).returncode
 
 
+def cmd_local(args: argparse.Namespace) -> int:
+    script = root() / "simulation" / "run-dsf-local.py"
+    cmd = [sys.executable, str(script), args.phase]
+    if args.live_agent:
+        cmd.append("--live-agent")
+    if args.deploy:
+        cmd.append("--deploy")
+    return subprocess.run(cmd, cwd=script.parent).returncode
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="dsf", description="Design Sync Framework CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -90,6 +100,17 @@ def main() -> int:
 
     p_qa = sub.add_parser("promote-qa", help="Promover a QA (solo si habilitado)")
     p_qa.set_defaults(func=cmd_promote_qa)
+
+    p_loc = sub.add_parser("local", help="Pipeline DSF local (simulation/, sin CI remoto)")
+    p_loc.add_argument(
+        "phase",
+        nargs="?",
+        default="all",
+        choices=["init", "prepare", "gap", "agent-dry", "build", "gates", "smoke", "validate", "report", "all"],
+    )
+    p_loc.add_argument("--live-agent", action="store_true")
+    p_loc.add_argument("--deploy", action="store_true")
+    p_loc.set_defaults(func=cmd_local)
 
     args = parser.parse_args()
     return args.func(args)

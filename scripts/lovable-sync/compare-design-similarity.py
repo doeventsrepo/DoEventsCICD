@@ -13,7 +13,7 @@ from design_normalize import (
 )
 from design_tokens import hardcoded_color_violations, load_design_tokens, semantic_token_score, token_metadata
 from design_validation_hints import attach_validation_to_comparison
-from port_map_utils import load_port_map, map_lovable_to_web, mapping_for
+from port_map_utils import is_excluded, load_port_map, load_port_map_data, map_lovable_to_web, mapping_for
 
 DESIGN_EXTENSIONS = {".tsx", ".ts", ".jsx", ".js", ".css"}
 SKIP_LOVABLE_PREFIXES = (
@@ -58,6 +58,7 @@ def main() -> int:
     out_path = Path(sys.argv[4]).resolve() if len(sys.argv) > 4 else lovable_root / "design-comparison.json"
 
     mapping = load_port_map(port_map_path)
+    port_map_data = load_port_map_data(port_map_path)
     design_tokens = load_design_tokens(lovable_root)
     tokens_meta = token_metadata(design_tokens)
     lovable_files = collect_lovable_design_files(lovable_root)
@@ -69,6 +70,8 @@ def main() -> int:
     tracked = 0
 
     for rel in lovable_files:
+        if is_excluded(rel, port_map_data):
+            continue
         web_rel = map_lovable_to_web(rel, mapping)
         if not web_rel:
             continue

@@ -1,6 +1,6 @@
 # Registro de pruebas — Simulación DoEventsCICD
 
-**Ejecución:** 2026-06-18 09:48:10 UTC
+**Ejecución:** 2026-06-21 10:10:58 UTC
 **Sandbox WEB:** `C:\DoEvents\AplicacionWEB\DoEventsCICD\simulation\sandbox\DoEventsWEB` (copia aislada, no productivo)
 **DoEventsWEB productivo:** no modificado
 
@@ -9,9 +9,9 @@
 | Métrica | Valor |
 |---------|-------|
 | Fixtures probados | 6 |
-| Tests PASS | 38 |
+| Tests PASS | 45 |
 | Tests FAIL | 0 |
-| Tests SKIP | 10 |
+| Tests SKIP | 15 |
 | **Veredicto** | **LISTO PARA IMPLANTAR (simulacion local)** |
 
 ## Resultado por fuente Lovable
@@ -24,6 +24,8 @@
 | Test | Estado |
 |------|--------|
 | validate_rules | PASS |
+| validate_design_rules | PASS |
+| orchestrator_pre_adapt | PASS |
 | validate_agent_gate | PASS |
 | analyze_lovable_diff | PASS |
 | build_agent_context | PASS |
@@ -40,6 +42,8 @@
 | Test | Estado |
 |------|--------|
 | validate_rules | PASS |
+| validate_design_rules | SKIP |
+| orchestrator_pre_adapt | PASS |
 | validate_agent_gate | PASS |
 | analyze_lovable_diff | PASS |
 | build_agent_context | PASS |
@@ -56,6 +60,8 @@
 | Test | Estado |
 |------|--------|
 | validate_rules | SKIP |
+| validate_design_rules | SKIP |
+| orchestrator_pre_adapt | PASS |
 | validate_agent_gate | PASS |
 | analyze_lovable_diff | PASS |
 | build_agent_context | PASS |
@@ -72,6 +78,8 @@
 | Test | Estado |
 |------|--------|
 | validate_rules | SKIP |
+| validate_design_rules | SKIP |
+| orchestrator_pre_adapt | PASS |
 | validate_agent_gate | PASS |
 | analyze_lovable_diff | PASS |
 | build_agent_context | PASS |
@@ -88,6 +96,8 @@
 | Test | Estado |
 |------|--------|
 | validate_rules | SKIP |
+| validate_design_rules | SKIP |
+| orchestrator_pre_adapt | PASS |
 | validate_agent_gate | PASS |
 | analyze_lovable_diff | PASS |
 | build_agent_context | PASS |
@@ -104,6 +114,8 @@
 | Test | Estado |
 |------|--------|
 | validate_rules | SKIP |
+| validate_design_rules | SKIP |
+| orchestrator_pre_adapt | PASS |
 | validate_agent_gate | PASS |
 | analyze_lovable_diff | PASS |
 | build_agent_context | PASS |
@@ -114,7 +126,7 @@
 
 ## Criterios de implantación
 
-- [x] Pipeline local sin FAIL (38 PASS / 0 FAIL)
+- [x] Pipeline local sin FAIL (45 PASS / 0 FAIL)
 - [x] discover-joyful-feed OK
 - [x] lovable-v17 OK
 - [x] Sandbox WEB aislado (no se modificó DoEventsWEB productivo)

@@ -29,24 +29,36 @@
       "humanInTheLoop": true
     },
     {
-      "id": "empalme",
+      "id": "python-empalme",
       "order": 3,
-      "name": "Agente empalme",
-      "script": "scripts/lovable-sync/run-port-agent-api.py",
-      "input": ["diff Lovable", "reglasActuacion", "ReglasAgente"],
-      "output": ["commits feature/cicd/dev-automation"],
+      "name": "Agente empalme Python",
+      "script": "scripts/lovable-sync/empalme-orchestrator.py",
+      "input": ["diff Lovable", "reglasActuacion", "reglasEmpalme", "reglasDiseno"],
+      "output": ["empalme-report", "commits feature/cicd/dev-automation"],
       "blocking": true,
-      "requiresApi": true
+      "requiresApi": false
+    },
+    {
+      "id": "cursor-escalation",
+      "order": 4,
+      "name": "Refuerzo Cursor (opcional, 1×)",
+      "script": "scripts/lovable-sync/run-gap-empalme-agent.py",
+      "input": ["cursorRequired from empalme report"],
+      "output": ["max 5 archivos"],
+      "blocking": false,
+      "requiresApi": true,
+      "disabledByDefault": true
     },
     {
       "id": "gap-empalme",
-      "order": 4,
-      "name": "Agente gap empalme",
+      "order": 99,
+      "name": "Gap loop (DESACTIVADO)",
       "script": "scripts/lovable-sync/dsf-gap-loop.py",
-      "input": ["design-comparison gaps"],
-      "output": ["gap batches hasta 98%"],
+      "input": [],
+      "output": [],
       "blocking": false,
-      "requiresApi": true
+      "requiresApi": true,
+      "disabled": true
     },
     {
       "id": "premerge-review",

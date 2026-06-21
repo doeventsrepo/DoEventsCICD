@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "description": "Entorno local DSF — sin GitHub Actions ni deploy DEV remoto por defecto",
+  "monorepoRoot": "../..",
+  "repos": {
+    "lovable": "../../discover-joyful-feed",
+    "web": "../../DoEventsWEB",
+    "cicd": "..",
+    "back": "../../DoEventsBack"
+  },
+  "sandbox": {
+    "web": "sandbox/DoEventsWEB",
+    "out": "output/dsf-local"
+  },
+  "modes": {
+    "useSandboxWeb": true,
+    "blockGitHub": true,
+    "allowGitPush": false,
+    "allowAwsDeploy": false,
+    "allowRemoteSmoke": false,
+    "allowCursorAgent": false,
+    "liveCursorAgent": false,
+    "useLocalGapLoopOnly": true,
+    "gapMaxBatches": 2,
+    "gapBatchSize": 10,
+    "targetSimilarity": 98
+  },
+  "notes": {
+    "agent": "allowCursorAgent=false — NUNCA usa Cursor API ni GitHub en local.",
+    "deploy": "Build local en sandbox; deploy AWS solo con --deploy y credenciales AWS explícitas."
+  }
+}

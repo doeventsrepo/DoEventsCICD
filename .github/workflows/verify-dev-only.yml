@@ -25,26 +25,28 @@ jobs:
           aws_dev = c['cloud']['providers']['aws']['dev']
           assert aws_dev['web']['domain'] == 'dev.doeventsapp.com'
           assert aws_dev['buildCommand'] == 'npm run build:devaws'
+          assert c['dsf']['qaPromotion']['enabled'] is False
           print('OK cicd.config.json')
           "
 
       - name: Workflow sync sin QA ni develop
         run: |
-          SYNC=.github/workflows/lovable-sync-to-web.yml
+          DSF=.github/workflows/dsf-sync-dev.yml
+          ALIAS=.github/workflows/lovable-sync-to-web.yml
           DEV=.github/workflows/deploy-web-dev.yml
-          for f in "$SYNC" "$DEV"; do
+          for f in "$DSF" "$ALIAS" "$DEV"; do
             test -f "$f" || { echo "Falta $f"; exit 1; }
           done
-          ! grep -q deploy_qa_after "$SYNC"
-          ! grep -qE 'build:qa|api-qa|qa\.doeventsapp' "$SYNC" "$DEV"
-          grep -q 'PROTECTED_BRANCHES: main,develop,release' "$SYNC"
-          grep -q 'feature/cicd/dev-automation' "$SYNC"
-          ! grep -q 'feature/lovable/adapt-' "$SYNC"
+          ! grep -q deploy_qa_after "$DSF" "$ALIAS"
+          ! grep -qE 'build:qa|api-qa|qa\.doeventsapp' "$DSF" "$ALIAS" "$DEV"
+          grep -q 'for forbidden in main develop release' "$DSF"
+          grep -q 'feature/cicd/dev-automation' "$DSF" "$ALIAS"
+          grep -q 'uses: ./.github/workflows/dsf-sync-dev.yml' "$ALIAS"
           grep -q 'agentOutputBranch' cicd.config.json
           grep -q 'environment: dev' "$DEV"
           grep -q 'sa-east-1' "$DEV"
           grep -q 'build:devaws' "$DEV"
-          echo "OK workflows automaticos = DEV + feature/*"
+          echo "OK workflows automaticos = DEV + feature/cicd/dev-automation"
 
       - name: QA workflows solo manual
         run: |
@@ -57,7 +59,7 @@ jobs:
 
       - name: Agente — build devaws
         run: |
-          grep -q 'BUILD_COMMAND: npm run build:devaws' .github/workflows/lovable-sync-to-web.yml
-          grep -q 'TARGET_ENV: dev' .github/workflows/lovable-sync-to-web.yml
+          grep -q 'BUILD_COMMAND: npm run build:devaws' .github/workflows/dsf-sync-dev.yml
+          grep -q 'npm run build:devaws' .github/workflows/dsf-sync-dev.yml
           ! grep -q 'build:qa' scripts/lovable-sync/run-port-agent-api.py || true
           echo "OK agente apunta a DEV"

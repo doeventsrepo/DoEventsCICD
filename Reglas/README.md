@@ -20,20 +20,23 @@ Reglas/
     └── fuentes-reglas.md       # reglasActuacion vs Reglas vs ReglasAgente
 ```
 
-## Tres capas de reglas
+## Cuatro capas de reglas (+ framework portable)
 
 | Capa | Ubicación | Quién la edita |
 |------|-----------|----------------|
 | Negocio UX (YAML) | `discover-joyful-feed/reglasActuacion/` | Diseño Lovable |
+| Diseño / empalme | `discover-joyful-feed/reglasDiseno/` | Diseño Lovable |
 | Operativas agente | **`Reglas/`** (este repo) | Equipo CICD |
 | Runtime por sync | `DoEventsWEB/ReglasAgente/` | Pipeline + agente |
+| Framework portable | `templates/reglasFramework/` | Equipo CICD (multi-app) |
 
 ## Flujo en pipeline
 
-1. **Validar** YAML en checkout Lovable (`reglasActuacion/`).
-2. **Bootstrap** `Reglas/artefactos-web/` → `DoEventsWEB/ReglasAgente/` si falta.
-3. **Gate** `reglas-front.md` en WEB (mín. 500 bytes).
-4. **Invocar agente** concatenando `operativas/prompt-empalme-web.md` + `reglamento-cursor-api.md` + contenido de `ReglasAgente/reglas-front.md`.
+1. **Validar** YAML en checkout Lovable (`reglasActuacion/` + `reglasDiseno/`).
+2. **Orquestador** multi-agente (`scripts/agents/orchestrator.py`) — pre-adapt / adapt / post-adapt.
+3. **Bootstrap** `Reglas/artefactos-web/` → `DoEventsWEB/ReglasAgente/` si falta.
+4. **Gate** `reglas-front.md` en WEB (mín. 500 bytes).
+5. **Invocar agente** empalme concatenando prompts operativos + ReglasAgente.
 
 ## Bootstrap en DoEventsWEB
 

@@ -265,18 +265,36 @@ Configurar `DOEVENTS_CICD_PAT` en el repo diseño.
 
 ---
 
-## 12. Roadmap de fases
-
-Alineado con Automatizacion.html §22:
+## 12. Roadmap de fases (DSF multi-app v3.1)
 
 | Fase | Estado | Descripción |
 |------|--------|-------------|
-| 1 | ✅ | Lovable + GitHub + `reglasActuacion` |
-| 2 | ✅ | Validación YAML en CI |
-| 3 | ✅ | Cursor Agent frontend-only (DoEventsCICD) |
-| 4 | 🔄 | Issues automáticos backend (impacto-backend.md) |
-| 5 | 🔄 | Fullstack controlado (`agent_mode=fullstack`) |
-| 6 | 🔄 | AWS CodePipeline end-to-end desde `develop` |
+| 0 | ✅ | Bootstrap DSF (`cicd.config.json` + port-map + ReglasAgente) |
+| 1 | ✅ | Lovable + `reglasActuacion` + `reglasDiseno` + trigger CICD |
+| 2 | ✅ | Validación YAML + reglasDiseno en CI |
+| 3 | ✅ | Agente empalme + gap-loop + orquestador multi-agente |
+| 4 | ✅ | Issues backend automáticos (`run-backend-analysis-agent.py`) |
+| 5 | ⏸ | Fullstack controlado (`agent_mode=fullstack`, deshabilitado) |
+| 6 | ⏸ | CodePipeline QA/prod (manualOnly — solo DEV auto) |
+
+**Deploy automático:** solo `dev` (`dev.doeventsapp.com`). QA/prod requieren aprobación manual.
+
+Ver: `docs/PROMPT_CONFIGURAR_REGLAS_LOVABLE.md` · `templates/reglasFramework/` · `scripts/agents/orchestrator.py`
+
+---
+
+## 13. Orquestador multi-agente
+
+Cadena ejecutada en `dsf-sync-dev.yml`:
+
+1. **rules-validation** — sugiere correcciones YAML
+2. **rules-refinement** — borradores reglasActuacion (human-in-the-loop)
+3. **empalme** — Cursor Cloud Agent API
+4. **gap-empalme** — batches hasta 98%
+5. **premerge-review** — anti-mocks, reglas-front, decision-log
+6. **backend-analysis** — issues GitHub DoEventsBack (sin modificar código)
+
+Local dry-run: `python scripts/agents/orchestrator.py --dry-run --phase all --skip-adapt`
 
 ---
 

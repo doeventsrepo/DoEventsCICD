@@ -132,6 +132,31 @@ def run_fixture(source: dict) -> dict:
         result["tests"].append({"name": "validate_rules", "status": "SKIP", "detail": "Sin reglasActuacion"})
         result["skipped"] += 1
 
+    # T01b validate reglasDiseno
+    if (work_path / "reglasDiseno").exists():
+        t = run_cmd([sys.executable, str(SCRIPTS / "validate-design-rules.py"), "reglasDiseno"], cwd=work_path)
+        status = "PASS" if t["ok"] else "FAIL"
+        result["tests"].append({"name": "validate_design_rules", "status": status, "detail": t})
+        result["passed" if t["ok"] else "failed"] += 1
+    else:
+        result["tests"].append({"name": "validate_design_rules", "status": "SKIP"})
+        result["skipped"] += 1
+
+    # T01c orchestrator dry-run (pre-adapt)
+    if SANDBOX_WEB.exists():
+        t = run_cmd(
+            [sys.executable, str(CICD_ROOT / "scripts" / "agents" / "orchestrator.py"), "--dry-run", "--phase", "pre-adapt", "--skip-adapt"],
+            env={
+                "CICD_DIR": str(CICD_ROOT),
+                "LOVABLE_DIR": str(work_path),
+                "WEB_DIR": str(SANDBOX_WEB),
+                "DSF_LOCAL_RUN_ID": f"sim-{fid}",
+            },
+        )
+        status = "PASS" if t["ok"] else "FAIL"
+        result["tests"].append({"name": "orchestrator_pre_adapt", "status": status, "detail": t})
+        result["passed" if t["ok"] else "failed"] += 1
+
     # T02 agent gate (sandbox WEB)
     if SANDBOX_WEB.exists():
         t = run_cmd([sys.executable, str(SCRIPTS / "validate-agent-gate.py"), str(SANDBOX_WEB)])

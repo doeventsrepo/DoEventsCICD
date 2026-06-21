@@ -1,0 +1,61 @@
+{
+  "version": "1.0",
+  "description": "Fases del playbook DSF — 0 Bootstrap → 6 CodePipeline",
+  "phases": {
+    "0": {
+      "id": "bootstrap",
+      "name": "Bootstrap DSF",
+      "enabled": true,
+      "tasks": ["cicd.config.json", "port-map", "ReglasAgente bootstrap", "reglasFramework copy"],
+      "script": "scripts/bootstrap-web-reglas-agente.sh",
+      "deployTarget": null
+    },
+    "1": {
+      "id": "lovable-trigger",
+      "name": "Lovable + reglasActuacion + trigger CICD",
+      "enabled": true,
+      "tasks": ["discover-joyful-feed connected", "reglasActuacion/", "reglasDiseno/", "trigger-cicd-sync.yml"],
+      "deployTarget": null
+    },
+    "2": {
+      "id": "validate-yaml",
+      "name": "Validación YAML sin IA",
+      "enabled": true,
+      "tasks": ["validate-rules.py", "validate-design-rules.py", "validate-reglas.yml CI"],
+      "deployTarget": null
+    },
+    "3": {
+      "id": "agent-frontend",
+      "name": "Agente frontend-only + gap-loop",
+      "enabled": true,
+      "tasks": ["run-port-agent-api.py", "dsf-gap-loop.py", "compare-design-similarity ≥98%"],
+      "deployTarget": "dev"
+    },
+    "4": {
+      "id": "backend-issues",
+      "name": "Issues backend automáticos",
+      "enabled": true,
+      "tasks": ["run-backend-analysis-agent.py", "impacto-backend.md → GitHub Issues"],
+      "deployTarget": null,
+      "humanApprovalRequired": true
+    },
+    "5": {
+      "id": "fullstack",
+      "name": "Fullstack controlado (opcional)",
+      "enabled": false,
+      "tasks": ["prompt-fullstack.md", "DoEventsBack agent edits"],
+      "deployTarget": "dev",
+      "humanApprovalRequired": true
+    },
+    "6": {
+      "id": "codepipeline",
+      "name": "CodePipeline QA/prod",
+      "enabled": false,
+      "tasks": ["aws/codebuild/*", "dsf-promote-qa.yml"],
+      "deployTarget": "qa",
+      "manualOnly": true
+    }
+  },
+  "activeDeployEnvironment": "dev",
+  "note": "DoEvents: fases 0-4 activas; 5-6 deshabilitadas. Solo deploy DEV automático."
+}

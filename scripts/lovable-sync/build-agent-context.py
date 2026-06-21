@@ -67,7 +67,23 @@ def main() -> int:
     ]
 
     rules_files = [f for f in changed if f.get("kind") == "rules" or str(f.get("path", "")).startswith("reglasActuacion/")]
+    design_rules = [f for f in changed if f.get("kind") == "design-rules" or str(f.get("path", "")).startswith("reglasDiseno/")]
     ui_files = [f for f in changed if f.get("kind") == "ui" or str(f.get("path", "")).startswith("src/")]
+
+    if design_rules or (lovable / "reglasDiseno").exists():
+        sections.append("## Reglas de diseño (reglasDiseno/)")
+        sections.append("")
+        sections.append("Tokens, breakpoints y convenciones de componentes para empalme y similitud ≥98%.")
+        sections.append("")
+        for name in ("tokens.yml", "breakpoints.yml", "component-conventions.yml"):
+            p = lovable / "reglasDiseno" / name
+            if p.exists():
+                content = truncate(p.read_text(encoding="utf-8"), 4000)
+                sections.append(f"### `{name}`")
+                sections.append("```yaml")
+                sections.append(content.rstrip())
+                sections.append("```")
+                sections.append("")
 
     if rules_files:
         sections.append("## Reglas de negocio modificadas (reglasActuacion/)")

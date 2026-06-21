@@ -1,0 +1,104 @@
+# DSF Multi-Agent Orchestrator — reusable workflow
+name: DSF Orchestrator
+
+on:
+  workflow_call:
+    inputs:
+      phase:
+        description: pre-adapt | adapt | post-adapt | all
+        type: string
+        default: all
+      run_id:
+        type: string
+        required: true
+      lovable_ref:
+        type: string
+        default: main
+      web_branch:
+        type: string
+        default: feature/cicd/dev-automation
+      design_comparison:
+        type: string
+        default: cicd/design-comparison.json
+      dry_run:
+        type: string
+        default: 'false'
+      skip_adapt:
+        type: string
+        default: 'false'
+    secrets:
+      CURSOR_API_KEY:
+        required: false
+      DOEVENTS_WEB_PAT:
+        required: false
+
+env:
+  DESIGN_REPO: doeventsrepo/discover-joyful-feed
+  WEB_REPO: doeventsrepo/DoEventsWEB
+
+jobs:
+  orchestrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cicd
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DESIGN_REPO }}
+          ref: ${{ inputs.lovable_ref }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: lovable
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          ref: ${{ inputs.web_branch }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsWEB
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: dsf-prepare-${{ github.run_id }}
+          path: cicd/artifacts-pre
+
+      - name: Preparar design-comparison
+        run: |
+          mkdir -p cicd
+          if [ -f cicd/artifacts-pre/design-comparison.json ]; then
+            cp cicd/artifacts-pre/design-comparison.json cicd/design-comparison.json
+          fi
+          if [ -f cicd/artifacts-pre/lovable-change-manifest.json ]; then
+            cp cicd/artifacts-pre/lovable-change-manifest.json lovable/lovable-change-manifest.json
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r cicd/requirements.txt
+
+      - name: Ejecutar orquestador multi-agente
+        env:
+          CICD_DIR: ${{ github.workspace }}/cicd
+          LOVABLE_DIR: ${{ github.workspace }}/lovable
+          WEB_DIR: ${{ github.workspace }}/DoEventsWEB
+          DESIGN_COMPARISON: ${{ github.workspace }}/cicd/design-comparison.json
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          DSF_AGENT_DRY_RUN: ${{ inputs.dry_run == 'true' && '1' || '0' }}
+          GITHUB_RUN_ID: ${{ inputs.run_id }}
+        run: |
+          ARGS="--phase ${{ inputs.phase }} --run-id ${{ inputs.run_id }}"
+          ARGS="$ARGS --lovable-dir $LOVABLE_DIR --web-dir $WEB_DIR"
+          ARGS="$ARGS --design-comparison $DESIGN_COMPARISON"
+          [ "${{ inputs.dry_run }}" = "true" ] && ARGS="$ARGS --dry-run"
+          [ "${{ inputs.skip_adapt }}" = "true" ] && ARGS="$ARGS --skip-adapt"
+          python3 cicd/scripts/agents/orchestrator.py $ARGS
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dsf-orchestrator-${{ inputs.run_id }}
+          path: cicd/artifacts/${{ inputs.run_id }}/

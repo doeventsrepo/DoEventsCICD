@@ -1,0 +1,73 @@
+{
+  "version": "1.0",
+  "description": "Cadena de agentes IA DSF — roles acotados",
+  "orchestrator": {
+    "script": "scripts/agents/orchestrator.py",
+    "dryRunEnv": "DSF_AGENT_DRY_RUN",
+    "localModeEnv": "DSF_LOCAL_MODE"
+  },
+  "chain": [
+    {
+      "id": "rules-validation",
+      "order": 1,
+      "name": "Agente validación reglas",
+      "script": "scripts/agents/run-rules-validation-agent.py",
+      "input": ["reglasActuacion/", "reglasDiseno/"],
+      "output": ["artifacts/rules-validation-report.json", "artifacts/rules-fix-suggestions.md"],
+      "blocking": false,
+      "requiresApi": false
+    },
+    {
+      "id": "rules-refinement",
+      "order": 2,
+      "name": "Agente refinamiento reglas",
+      "script": "scripts/agents/run-rules-refinement-agent.py",
+      "input": ["src/", "reglasActuacion/"],
+      "output": ["artifacts/rules-refinement-drafts/"],
+      "blocking": false,
+      "requiresApi": false,
+      "humanInTheLoop": true
+    },
+    {
+      "id": "empalme",
+      "order": 3,
+      "name": "Agente empalme",
+      "script": "scripts/lovable-sync/run-port-agent-api.py",
+      "input": ["diff Lovable", "reglasActuacion", "ReglasAgente"],
+      "output": ["commits feature/cicd/dev-automation"],
+      "blocking": true,
+      "requiresApi": true
+    },
+    {
+      "id": "gap-empalme",
+      "order": 4,
+      "name": "Agente gap empalme",
+      "script": "scripts/lovable-sync/dsf-gap-loop.py",
+      "input": ["design-comparison gaps"],
+      "output": ["gap batches hasta 98%"],
+      "blocking": false,
+      "requiresApi": true
+    },
+    {
+      "id": "premerge-review",
+      "order": 5,
+      "name": "Agente revisión pre-merge",
+      "script": "scripts/agents/run-premerge-review-agent.py",
+      "input": ["diff empalme", "ReglasAgente/"],
+      "output": ["artifacts/premerge-review.json"],
+      "blocking": false,
+      "requiresApi": false
+    },
+    {
+      "id": "backend-analysis",
+      "order": 6,
+      "name": "Agente análisis backend",
+      "script": "scripts/agents/run-backend-analysis-agent.py",
+      "input": ["impacto-backend.md", "reglasActuacion/"],
+      "output": ["GitHub Issues DoEventsBack"],
+      "blocking": false,
+      "requiresApi": false,
+      "humanApprovalRequired": true
+    }
+  ]
+}

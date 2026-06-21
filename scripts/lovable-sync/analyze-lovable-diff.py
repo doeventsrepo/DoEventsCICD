@@ -13,6 +13,7 @@ WATCH_PREFIXES = (
     "src/",
     "public/",
     "reglasActuacion/",
+    "reglasDiseno/",
     "tailwind.config.ts",
     "index.html",
 )
@@ -53,6 +54,8 @@ def last_synced_lovable_sha(web: Path) -> str | None:
 def classify(path: str) -> str:
     if path.startswith("reglasActuacion/"):
         return "rules"
+    if path.startswith("reglasDiseno/"):
+        return "design-rules"
     if path.startswith("src/") or path.startswith("public/"):
         return "ui"
     return "config"

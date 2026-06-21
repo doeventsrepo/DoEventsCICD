@@ -1,8 +1,51 @@
 {
-  "version": "3.0",
+  "version": "3.1",
   "framework": "DSF",
   "project": "DoEvents",
-  "description": "Design Sync Framework — Lovable → empalme → gates bloqueantes → DEV. QA promoción inhabilitada hasta ciclo DEV validado.",
+  "description": "Design Sync Framework multi-app — Lovable → empalme → agentes → gates → DEV. QA/prod manual.",
+  "dsfCore": {
+    "framework": "DSF",
+    "designRepo": "doeventsrepo/discover-joyful-feed",
+    "appRepo": "doeventsrepo/DoEventsWEB",
+    "backendRepo": "doeventsrepo/DoEventsBack",
+    "cicdRepo": "doeventsrepo/DoEventsCICD",
+    "portMap": ".lovable-port-map.json",
+    "rulesDir": "reglasActuacion",
+    "designRulesDir": "reglasDiseno",
+    "bridgeDir": "packages/shell/src/lovable-bridge",
+    "lovableUiDir": "src",
+    "webLovableDir": "packages/shell/src/lovable",
+    "agentRulesDir": "ReglasAgente",
+    "frameworkRulesDir": "templates/reglasFramework",
+    "targetSimilarity": 98,
+    "cloudProvider": "aws",
+    "deployEnvironments": {
+      "dev": { "enabled": true, "autoDeploy": true },
+      "qa": { "enabled": false, "autoDeploy": false, "manualOnly": true },
+      "prod": { "enabled": false, "autoDeploy": false, "manualOnly": true }
+    },
+    "agents": {
+      "orchestrator": "scripts/agents/orchestrator.py",
+      "empalme": "scripts/lovable-sync/run-port-agent-api.py",
+      "gapEmpalme": "scripts/lovable-sync/run-gap-empalme-agent.py",
+      "rulesValidation": "scripts/agents/run-rules-validation-agent.py",
+      "backendAnalysis": "scripts/agents/run-backend-analysis-agent.py",
+      "premergeReview": "scripts/agents/run-premerge-review-agent.py",
+      "rulesRefinement": "scripts/agents/run-rules-refinement-agent.py"
+    }
+  },
+  "phases": {
+    "activeDeployEnvironment": "dev",
+    "definitions": {
+      "0": { "id": "bootstrap", "enabled": true, "deployTarget": null },
+      "1": { "id": "lovable-trigger", "enabled": true, "deployTarget": null },
+      "2": { "id": "validate-yaml", "enabled": true, "deployTarget": null },
+      "3": { "id": "agent-frontend", "enabled": true, "deployTarget": "dev" },
+      "4": { "id": "backend-issues", "enabled": true, "deployTarget": null, "humanApprovalRequired": true },
+      "5": { "id": "fullstack", "enabled": false, "deployTarget": "dev", "humanApprovalRequired": true },
+      "6": { "id": "codepipeline", "enabled": false, "deployTarget": "qa", "manualOnly": true }
+    }
+  },
   "repositories": {
     "cicd": "doeventsrepo/DoEventsCICD",
     "design": "doeventsrepo/discover-joyful-feed",
@@ -22,6 +65,7 @@
   },
   "paths": {
     "lovableRules": "reglasActuacion",
+    "lovableDesignRules": "reglasDiseno",
     "agentRules": "ReglasAgente",
     "lovableUi": "src",
     "webLovable": "packages/shell/src/lovable",
@@ -31,6 +75,7 @@
     "cicdReglas": "Reglas",
     "cicdReglasOperativas": "Reglas/operativas",
     "cicdReglasCustom": "Reglas/custom",
+    "cicdFrameworkRules": "templates/reglasFramework",
     "cicdScripts": "scripts/lovable-sync",
     "dsfCore": "dsf",
     "reportsDir": "Reports",
@@ -38,7 +83,7 @@
   },
   "dsf": {
     "targetSimilarityPercent": 98,
-    "maxGapBatches": 5,
+    "maxGapBatches": 6,
     "gapBatchSize": 20,
     "autoChainGapEmpalme": true,
     "forceAgentOnChanges": true,
@@ -128,12 +173,16 @@
     "autoDeployDevOnLovableSync": true,
     "autoDeployQaOnDevelopMerge": false,
     "forbidAutomaticQaDeploy": true,
+    "forbidAutomaticProdDeploy": true,
     "requireHumanApprovalForProd": true,
     "validateMocks": true,
     "validateSecrets": true,
+    "validateDesignRules": true,
     "deployAfterAgentBranch": true,
+    "orchestratorWorkflow": "dsf-orchestrator.yml",
     "gapEmpalmeWorkflow": "dsf-gap-empalme.yml",
     "mainWorkflow": "dsf-sync-dev.yml",
-    "gapEmpalmeDefaultBatchSize": 20
+    "gapEmpalmeDefaultBatchSize": 20,
+    "runMultiAgentOrchestrator": true
   }
 }

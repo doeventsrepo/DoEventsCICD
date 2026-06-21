@@ -135,6 +135,7 @@ jobs:
       - name: Validar reglas YAML + ReglasAgente + CICD
         run: |
           python3 cicd/scripts/lovable-sync/validate-rules.py lovable/reglasActuacion
+          python3 cicd/scripts/lovable-sync/validate-design-rules.py lovable/reglasDiseno
           python3 cicd/scripts/lovable-sync/validate-agent-gate.py DoEventsWEB
           python3 cicd/scripts/lovable-sync/validate-reglas-cicd.py cicd
 
@@ -213,8 +214,21 @@ jobs:
             git push "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git" "${WEB_CICD_BRANCH}"
           }
 
-  adapt:
+  agents-pre-adapt:
     needs: prepare
+    if: needs.prepare.result == 'success'
+    uses: ./.github/workflows/dsf-orchestrator.yml
+    with:
+      phase: pre-adapt
+      run_id: ${{ github.run_id }}-pre
+      lovable_ref: ${{ needs.prepare.outputs.lovable_sha }}
+      web_branch: ${{ needs.prepare.outputs.web_branch }}
+      dry_run: 'false'
+      skip_adapt: 'true'
+    secrets: inherit
+
+  adapt:
+    needs: [prepare, agents-pre-adapt]
     if: |
       needs.prepare.outputs.requires_agent == 'true' &&
       (inputs.run_agent != 'false' && github.event.inputs.run_agent != 'false' && github.event.client_payload.run_agent != 'false')
@@ -366,8 +380,21 @@ jobs:
       - run: pip install -r cicd/requirements.txt
       - run: python3 cicd/scripts/rules/run-custom-gates.py cicd/Reglas/custom --web-dir DoEventsWEB
 
+  agents-post-adapt:
+    needs: [prepare, adapt, gap-loop]
+    if: always() && needs.prepare.result == 'success'
+    uses: ./.github/workflows/dsf-orchestrator.yml
+    with:
+      phase: post-adapt
+      run_id: ${{ github.run_id }}-post
+      lovable_ref: ${{ needs.prepare.outputs.lovable_sha }}
+      web_branch: ${{ needs.adapt.result == 'success' && needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
+      dry_run: 'false'
+      skip_adapt: 'true'
+    secrets: inherit
+
   deploy-dev:
-    needs: [prepare, adapt, gap-loop, custom-gates]
+    needs: [prepare, adapt, gap-loop, custom-gates, agents-post-adapt]
     if: |
       always() &&
       needs.prepare.result == 'success' &&

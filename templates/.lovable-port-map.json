@@ -14,10 +14,12 @@
     { "lovable": "src/contexts/", "web": "packages/shell/src/lovable/contexts/" },
     { "lovable": "src/hooks/", "web": "packages/shell/src/lovable/hooks/" },
     { "lovable": "public/", "web": "packages/shell/public/" },
-    { "lovable": "reglasActuacion/", "web": "reglasActuacion/" }
+    { "lovable": "reglasActuacion/", "web": "reglasActuacion/", "note": "Referencia agente" },
+    { "lovable": "reglasDiseno/", "web": "docs/design/reglasDiseno/", "note": "Tokens y convenciones DSF" }
   ],
   "forbidden": [
     "src/integrations/supabase/",
+    "src/data/",
     "supabase/"
   ],
   "agentManaged": [

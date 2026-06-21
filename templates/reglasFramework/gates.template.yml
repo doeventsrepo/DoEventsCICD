@@ -1,0 +1,21 @@
+# Gates DSF estándar (G0–G6)
+
+| Gate | Script | Bloqueante | Descripción |
+|------|--------|------------|-------------|
+| G0 | validate-port-map-coverage.py | Sí | Port-map cubre archivos UI cambiados |
+| G1 | npm run build:devaws | Sí | Build frontend destino |
+| G2 | validate-agent-gate.py | Sí | reglas-front.md ≥500 bytes |
+| G3 | validate-no-mocks.sh | Sí | Sin mocks Lovable en pages/ |
+| G4 | compare-design-similarity.py | Configurable | Similitud ≥ targetSimilarity |
+| G5 | custom gates (Reglas/custom/) | Sí | Reglas extensibles por app |
+| G6 | dev-smoke.sh | Sí | Smoke DEV post-deploy |
+| G_final | validate-pipeline-sync.py | Sí | Consolidación pipeline |
+
+## Custom gates por app
+
+Copiar reglas YAML a `Reglas/custom/` y ejecutar via `scripts/rules/run-custom-gates.py`.
+
+## Similitud
+
+- **DEV preview**: deploy permitido aunque similitud < 98% (iteración)
+- **DEV certificado**: similitud ≥ 98% + smoke OK → listo para merge manual develop

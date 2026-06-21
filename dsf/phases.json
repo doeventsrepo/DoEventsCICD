@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "description": "Fases activas DSF — DoEvents (solo DEV automático)",
+  "activeDeployEnvironment": "dev",
+  "phases": {
+    "0": { "enabled": true, "name": "Bootstrap DSF" },
+    "1": { "enabled": true, "name": "Lovable + reglas + trigger CICD" },
+    "2": { "enabled": true, "name": "Validación YAML sin IA" },
+    "3": { "enabled": true, "name": "Agente frontend + gap-loop" },
+    "4": { "enabled": true, "name": "Issues backend automáticos" },
+    "5": { "enabled": false, "name": "Fullstack controlado (opcional)" },
+    "6": { "enabled": false, "name": "CodePipeline QA/prod (manual)" }
+  }
+}

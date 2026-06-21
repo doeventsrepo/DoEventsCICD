@@ -1,0 +1,30 @@
+{
+  "framework": "DSF",
+  "designRepo": "<org>/<lovable-repo>",
+  "appRepo": "<org>/<frontend-repo>",
+  "backendRepo": "<org>/<backend-repo>",
+  "cicdRepo": "<org>/<cicd-repo>",
+  "portMap": ".lovable-port-map.json",
+  "rulesDir": "reglasActuacion",
+  "designRulesDir": "reglasDiseno",
+  "bridgeDir": "packages/shell/src/lovable-bridge",
+  "lovableUiDir": "src",
+  "webLovableDir": "packages/shell/src/lovable",
+  "agentRulesDir": "ReglasAgente",
+  "targetSimilarity": 98,
+  "cloudProvider": "aws",
+  "deployEnvironments": {
+    "dev": { "enabled": true, "autoDeploy": true },
+    "qa": { "enabled": false, "autoDeploy": false, "manualOnly": true },
+    "prod": { "enabled": false, "autoDeploy": false, "manualOnly": true }
+  },
+  "agents": {
+    "orchestrator": "scripts/agents/orchestrator.py",
+    "empalme": "scripts/lovable-sync/run-port-agent-api.py",
+    "gapEmpalme": "scripts/lovable-sync/run-gap-empalme-agent.py",
+    "rulesValidation": "scripts/agents/run-rules-validation-agent.py",
+    "backendAnalysis": "scripts/agents/run-backend-analysis-agent.py",
+    "premergeReview": "scripts/agents/run-premerge-review-agent.py",
+    "rulesRefinement": "scripts/agents/run-rules-refinement-agent.py"
+  }
+}

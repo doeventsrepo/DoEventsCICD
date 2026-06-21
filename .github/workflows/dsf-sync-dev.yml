@@ -461,7 +461,7 @@ jobs:
         id: validate
         run: |
           AGENT_RAN="${{ needs.adapt.outputs.agent_ran || 'false' }}"
-          DEPLOY_RAN="${{ needs.deploy-dev.result == 'success' && 'true' || 'false' }}"
+          DEPLOY_RAN="${{ needs.deploy-dev.outputs.deploy_ok == 'true' && 'true' || 'false' }}"
           SMOKE_RAN="${{ needs.deploy-dev.outputs.smoke_ran == 'true' && 'true' || 'false' }}"
           SMOKE_OK="${{ needs.deploy-dev.outputs.smoke_ok == 'true' && 'true' || 'false' }}"
           PORT_OK=$(python3 -c "import json; from pathlib import Path; p=Path('cicd/artifacts-pre/port-map-result.json'); print(str(json.load(open(p))['ok']).lower() if p.exists() else 'true')")
@@ -510,7 +510,7 @@ jobs:
           echo "| Similitud pre | ${{ needs.prepare.outputs.similarity_percent }}% |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Agente | ${{ needs.adapt.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Gap loop | ${{ needs.gap-loop.result }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Deploy DEV | ${{ needs.deploy-dev.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Deploy DEV | ${{ needs.deploy-dev.outputs.deploy_ok == 'true' && 'success' || needs.deploy-dev.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Smoke | ${{ needs.deploy-dev.outputs.smoke_ran == 'true' && needs.deploy-dev.outputs.smoke_ok || 'omitido/fail' }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| QA promoción | **INHABILITADA** |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"

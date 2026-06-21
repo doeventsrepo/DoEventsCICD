@@ -65,12 +65,14 @@ auth_header() {
 }
 
 events_code=$(curl -sS -o /tmp/dsf-events.json -w "%{http_code}" --max-time 25 \
+  -X POST \
   -H "$(auth_header)" -H "Content-Type: application/json" \
+  -d "{\"userID\":\"\",\"offset\":0,\"limit\":5,\"fechaActual\":\"$(date -u +%d/%m/%Y)\"}" \
   "$API_BASE/events-feed/eventsFeed" 2>/dev/null || echo "000")
 if [ "$events_code" = "200" ]; then
-  record "events_feed" true "Feed responde"
+  record "events_feed" true "Feed responde (POST)"
 else
-  record "events_feed" false "HTTP $events_code"
+  record "events_feed" false "HTTP $events_code (POST /events-feed/eventsFeed)"
 fi
 
 types_code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 25 \

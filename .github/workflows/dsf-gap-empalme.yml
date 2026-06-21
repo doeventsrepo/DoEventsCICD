@@ -1,4 +1,4 @@
-# Alias — delega a lovable-gap-empalme.yml (legacy) o usar gap-loop en dsf-sync-dev.yml
+# Alias — encadena batches hasta objetivo (preferir dsf-gap-batch-loop.yml)
 name: DSF Gap Empalme (DEV)
 
 on:

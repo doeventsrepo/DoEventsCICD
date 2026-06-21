@@ -1,0 +1,162 @@
+# DSF — Watchdog: gap-empalme en cadena hasta similitud objetivo y/o 0 gaps pendientes
+# Sin adapt/prepare del sync completo. Un solo job encadena batches con dsf-gap-loop.py.
+name: DSF Gap Batch Loop (watchdog)
+
+on:
+  workflow_dispatch:
+    inputs:
+      lovable_ref:
+        description: SHA o rama discover-joyful-feed
+        default: main
+      web_cicd_branch:
+        default: feature/cicd/dev-automation
+      target_similarity:
+        description: Similitud objetivo (%)
+        default: '98'
+      max_batches:
+        description: Máximo batches (20 gaps c/u)
+        default: '25'
+      batch_size:
+        default: '20'
+      deploy_dev_after:
+        description: Desplegar DEV al final si hay cambios
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+      require_zero_gaps:
+        description: Exigir 0 gaps pendientes además de similitud
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+
+concurrency:
+  group: dsf-gap-batch-loop
+  cancel-in-progress: false
+
+env:
+  DESIGN_REPO: doeventsrepo/discover-joyful-feed
+  WEB_REPO: doeventsrepo/DoEventsWEB
+  WEB_CICD_BRANCH: feature/cicd/dev-automation
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar rama WEB
+        env:
+          WEB_BRANCH: ${{ inputs.web_cicd_branch || 'feature/cicd/dev-automation' }}
+        run: |
+          branch="${WEB_BRANCH,,}"
+          for forbidden in main develop release; do
+            if [ "$branch" = "$forbidden" ] || [[ "$branch" == release/* ]]; then
+              echo "ERROR: rama prohibida: $WEB_BRANCH" >&2; exit 1
+            fi
+          done
+          if [ "$branch" != "feature/cicd/dev-automation" ]; then
+            echo "ERROR: solo feature/cicd/dev-automation" >&2; exit 1
+          fi
+
+  gap-watchdog:
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    outputs:
+      final_similarity: ${{ steps.loop.outputs.final_similarity }}
+      final_pending: ${{ steps.loop.outputs.final_pending }}
+      batches_run: ${{ steps.loop.outputs.batches_run }}
+      watchdog_ok: ${{ steps.loop.outputs.watchdog_ok }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: cicd }
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DESIGN_REPO }}
+          ref: ${{ inputs.lovable_ref || 'main' }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: lovable
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.WEB_REPO }}
+          ref: ${{ inputs.web_cicd_branch || 'feature/cicd/dev-automation' }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsWEB
+
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install -r cicd/requirements.txt
+
+      - name: Gap batch loop (watchdog)
+        id: loop
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          DOEVENTS_WEB_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
+          AGENT_BRANCH: ${{ inputs.web_cicd_branch || 'feature/cicd/dev-automation' }}
+          TARGET: ${{ inputs.target_similarity || '98' }}
+          MAX_BATCHES: ${{ inputs.max_batches || '25' }}
+          BATCH_SIZE: ${{ inputs.batch_size || '20' }}
+          REQUIRE_ZERO: ${{ inputs.require_zero_gaps || 'true' }}
+        run: |
+          set +e
+          python3 cicd/scripts/lovable-sync/dsf-gap-loop.py \
+            --lovable-dir lovable --web-dir DoEventsWEB --cicd-dir cicd \
+            --port-map DoEventsWEB/.lovable-port-map.json \
+            --target "$TARGET" --max-batches "$MAX_BATCHES" --batch-size "$BATCH_SIZE" \
+            --run-id ${{ github.run_id }}
+          RC=$?
+          SUM=cicd/gap-loop-summary-${{ github.run_id }}.json
+          FINAL=$(python3 -c "import json; print(json.load(open('$SUM'))['finalSimilarity'])" 2>/dev/null || echo "0")
+          PENDING=$(python3 -c "import json; print(json.load(open('$SUM')).get('finalPendingGaps',999))" 2>/dev/null || echo "999")
+          BATCHES=$(python3 -c "import json; print(json.load(open('$SUM')).get('batchesRun',0))" 2>/dev/null || echo "0")
+          echo "final_similarity=$FINAL" >> "$GITHUB_OUTPUT"
+          echo "final_pending=$PENDING" >> "$GITHUB_OUTPUT"
+          echo "batches_run=$BATCHES" >> "$GITHUB_OUTPUT"
+          OK=false
+          if [ "$REQUIRE_ZERO" = "true" ]; then
+            python3 -c "import json,sys; s=json.load(open('$SUM')); sys.exit(0 if s.get('ok') else 1)" && OK=true
+          else
+            python3 -c "import json,sys; s=json.load(open('$SUM')); sys.exit(0 if s.get('targetReached') else 1)" && OK=true
+          fi
+          echo "watchdog_ok=$OK" >> "$GITHUB_OUTPUT"
+          cat "$SUM" || true
+          if [ "$OK" = "true" ]; then exit 0; fi
+          if [ "$REQUIRE_ZERO" = "false" ] && python3 -c "import json; s=json.load(open('$SUM')); exit(0 if s.get('targetReached') else 1)"; then
+            echo "AVISO: similitud OK pero quedan gaps — watchdog parcial"
+            exit 0
+          fi
+          echo "AVISO: watchdog sin objetivo completo (RC=$RC) — revisar artefactos"
+          exit 0
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dsf-gap-watchdog-${{ github.run_id }}
+          path: |
+            cicd/gap-loop-summary-*.json
+            cicd/gap-manifest-batch-*.json
+            cicd/design-comparison-loop-*.json
+
+      - name: Resumen watchdog
+        if: always()
+        run: |
+          echo "## DSF Gap Batch Watchdog — ${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Métrica | Valor |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|-------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Similitud final | ${{ steps.loop.outputs.final_similarity }}% |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Gaps pendientes | ${{ steps.loop.outputs.final_pending }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Batches ejecutados | ${{ steps.loop.outputs.batches_run }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Objetivo cumplido | ${{ steps.loop.outputs.watchdog_ok }} |" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-dev:
+    needs: gap-watchdog
+    if: |
+      needs.gap-watchdog.result == 'success' &&
+      needs.gap-watchdog.outputs.batches_run != '0' &&
+      (inputs.deploy_dev_after != 'false')
+    uses: ./.github/workflows/deploy-web-dev.yml
+    with:
+      web_ref: ${{ inputs.web_cicd_branch || 'feature/cicd/dev-automation' }}
+      lovable_sha: ${{ inputs.lovable_ref || 'main' }}
+      run_id: ${{ github.run_id }}
+    secrets: inherit

@@ -46,7 +46,14 @@ def main() -> int:
     parser.add_argument("--batch-size", type=int, default=20)
     parser.add_argument("--run-id", default="local")
     parser.add_argument("--skip-agent", action="store_true")
+    parser.add_argument("--analyze-only", action="store_true", help="Solo comparar y generar manifiesto de gaps (sin agente)")
     args = parser.parse_args()
+
+    if not args.skip_agent and (
+        os.environ.get("DSF_BLOCK_GITHUB") == "1" or os.environ.get("DSF_LOCAL_MODE") == "1"
+    ):
+        print("ERROR: gap loop con agente bloqueado en modo local. Usa --skip-agent o local-gap-loop.py", file=sys.stderr)
+        return 1
 
     lovable = Path(args.lovable_dir)
     web = Path(args.web_dir)
@@ -65,6 +72,28 @@ def main() -> int:
         return 0
 
     if args.skip_agent or not os.environ.get("CURSOR_API_KEY"):
+        if args.analyze_only or args.skip_agent:
+            gap_manifest = cicd / f"gap-manifest-batch-1-{args.run_id}.json"
+            run([
+                sys.executable, str(gap_manifest_script),
+                str(before_path), str(gap_manifest),
+                "--batch-size", str(args.batch_size),
+                "--batch-index", "1",
+                "--run-id", f"{args.run_id}-b1",
+            ])
+            gaps = json.loads(gap_manifest.read_text(encoding="utf-8"))
+            summary = {
+                "ok": False,
+                "mode": "analyze-only",
+                "finalSimilarity": current_sim,
+                "target": args.target,
+                "pendingGaps": gaps.get("totalPendingGaps", 0),
+                "gapsInBatch": gaps.get("gapsInBatch", 0),
+            }
+            summary_path = cicd / f"gap-loop-summary-{args.run_id}.json"
+            summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+            print(json.dumps(summary, indent=2))
+            return 0
         print("AVISO: sin CURSOR_API_KEY o --skip-agent — gap loop solo analiza", file=sys.stderr)
         return 1
 
@@ -72,6 +101,7 @@ def main() -> int:
     os.environ.setdefault("WEB_DIR", str(web))
     os.environ.setdefault("CICD_DIR", str(cicd))
 
+    batches_run = 0
     for batch_idx in range(1, args.max_batches + 1):
         if current_sim >= args.target:
             break
@@ -81,13 +111,14 @@ def main() -> int:
             sys.executable, str(gap_manifest_script),
             str(before_path), str(gap_manifest),
             "--batch-size", str(args.batch_size),
-            "--batch-index", str(batch_idx),
+            "--batch-index", "1",
             "--run-id", f"{args.run_id}-b{batch_idx}",
         ])
 
         gaps = json.loads(gap_manifest.read_text(encoding="utf-8"))
+        pending = int(gaps.get("totalPendingGaps", 0))
         if gaps.get("gapsInBatch", 0) == 0:
-            print(f"Batch {batch_idx}: sin gaps en batch — fin loop")
+            print(f"Batch {batch_idx}: sin gaps en batch — fin loop (pendientes {pending})")
             break
 
         os.environ["GAP_MANIFEST_PATH"] = str(gap_manifest)
@@ -100,13 +131,27 @@ def main() -> int:
         run([sys.executable, str(compare_script), str(lovable), str(web), args.port_map, str(after_path)])
         current_sim = similarity(after_path)
         before_path = after_path
-        print(f"Batch {batch_idx} completado — similitud: {current_sim}%")
+        batches_run = batch_idx
+        pending = int(json.loads(gap_manifest.read_text(encoding="utf-8")).get("totalPendingGaps", pending))
+        print(f"Batch {batch_idx} completado — similitud: {current_sim}% (pendientes ~{pending})")
+
+    final_pending = 0
+    try:
+        comp = json.loads(before_path.read_text(encoding="utf-8"))
+        final_pending = int(comp.get("summary", {}).get("needsAdaptation", 0)) + int(
+            comp.get("missingInWebCount", comp.get("summary", {}).get("missingInWeb", 0))
+        )
+    except (OSError, json.JSONDecodeError, KeyError):
+        pass
 
     summary = {
-        "ok": current_sim >= args.target,
+        "ok": current_sim >= args.target and final_pending == 0,
+        "targetReached": current_sim >= args.target,
+        "gapsClosed": final_pending == 0,
         "finalSimilarity": current_sim,
+        "finalPendingGaps": final_pending,
         "target": args.target,
-        "batchesRun": min(batch_idx, args.max_batches) if current_sim < args.target else batch_idx - 1,
+        "batchesRun": batches_run,
     }
     summary_path = cicd / f"gap-loop-summary-{args.run_id}.json"
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")

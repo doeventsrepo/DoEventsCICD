@@ -141,6 +141,7 @@ def main() -> int:
     parser.add_argument("--allow-partial", action="store_true")
     parser.add_argument("--poll-sec", type=int, default=45)
     parser.add_argument("--then-launch", action="store_true", help="Tras poll: lanzar batch-loop si no se cumplió objetivo")
+    parser.add_argument("--status-file", default="gap-watchdog-status.json")
     args = parser.parse_args()
     if args.no_deploy:
         args.deploy = False

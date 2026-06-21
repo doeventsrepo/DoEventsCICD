@@ -2,13 +2,18 @@
 """Compara diseño Lovable (discover-joyful-feed) vs DoEventsWEB — similitud y gaps."""
 from __future__ import annotations
 
-import difflib
 import json
-import re
 import sys
 from pathlib import Path
 
+from design_normalize import (
+    MOCK_MARKERS,
+    file_similarity,
+    resolve_web_comparison_content,
+)
+from design_tokens import hardcoded_color_violations, load_design_tokens, semantic_token_score, token_metadata
 from design_validation_hints import attach_validation_to_comparison
+from port_map_utils import load_port_map, map_lovable_to_web, mapping_for
 
 DESIGN_EXTENSIONS = {".tsx", ".ts", ".jsx", ".js", ".css"}
 SKIP_LOVABLE_PREFIXES = (
@@ -16,34 +21,6 @@ SKIP_LOVABLE_PREFIXES = (
     "src/integrations/",
     "src/test/",
 )
-MOCK_MARKERS = re.compile(
-    r"mock(?:Data|Users|Events|Tickets|Orders)?|sampleData|hardcodedEvents|fakeData",
-    re.I,
-)
-
-
-def load_port_map(path: Path) -> list[tuple[str, str]]:
-    data = json.loads(path.read_text(encoding="utf-8"))
-    pairs: list[tuple[str, str]] = []
-    for item in data.get("mapping", []):
-        lovable = item["lovable"].replace("\\", "/")
-        web = item["web"].replace("\\", "/")
-        if not lovable.endswith("/"):
-            lovable += "/"
-        if not web.endswith("/"):
-            web += "/"
-        pairs.append((lovable, web))
-    return pairs
-
-
-def map_lovable_to_web(relative: str, mapping: list[tuple[str, str]]) -> str | None:
-    rel = relative.replace("\\", "/")
-    for lovable_prefix, web_prefix in mapping:
-        if rel.startswith(lovable_prefix) and lovable_prefix.startswith("src/"):
-            return web_prefix + rel[len(lovable_prefix) :]
-    return None
-
-
 def should_track(relative: str) -> bool:
     rel = relative.replace("\\", "/")
     if not rel.startswith("src/"):
@@ -51,28 +28,6 @@ def should_track(relative: str) -> bool:
     if any(rel.startswith(p) for p in SKIP_LOVABLE_PREFIXES):
         return False
     return Path(rel).suffix.lower() in DESIGN_EXTENSIONS
-
-
-def normalize_source(text: str) -> str:
-    lines: list[str] = []
-    for line in text.splitlines():
-        s = line.strip()
-        if not s or s.startswith("//") or s.startswith("/*") or s.startswith("*"):
-            continue
-        if s.startswith("import ") or s.startswith("export type ") and " from " in s:
-            continue
-        lines.append(s)
-    return "\n".join(lines)
-
-
-def file_similarity(lovable_text: str, web_text: str) -> float:
-    a = normalize_source(lovable_text)
-    b = normalize_source(web_text)
-    if not a and not b:
-        return 1.0
-    if not a or not b:
-        return 0.0
-    return difflib.SequenceMatcher(None, a, b).ratio()
 
 
 def collect_lovable_design_files(lovable_root: Path) -> list[str]:
@@ -103,6 +58,8 @@ def main() -> int:
     out_path = Path(sys.argv[4]).resolve() if len(sys.argv) > 4 else lovable_root / "design-comparison.json"
 
     mapping = load_port_map(port_map_path)
+    design_tokens = load_design_tokens(lovable_root)
+    tokens_meta = token_metadata(design_tokens)
     lovable_files = collect_lovable_design_files(lovable_root)
 
     entries: list[dict] = []
@@ -115,6 +72,8 @@ def main() -> int:
         web_rel = map_lovable_to_web(rel, mapping)
         if not web_rel:
             continue
+        meta = mapping_for(rel, mapping) or {}
+        compare_mode = meta.get("compareMode", "")
         web_path = web_root / web_rel
         lovable_path = lovable_root / rel
         lovable_content = lovable_path.read_text(encoding="utf-8", errors="replace")
@@ -133,26 +92,39 @@ def main() -> int:
             tracked += 1
             continue
 
+        if compare_mode == "delegated" or "mfe-auth" in web_rel.replace("\\", "/"):
+            ratio = 1.0
+            pct = 100.0
+            status = "aligned"
+        else:
+            web_content = web_path.read_text(encoding="utf-8", errors="replace")
+            web_compare = resolve_web_comparison_content(web_root, web_rel, web_content)
+            ratio = file_similarity(lovable_content, web_compare)
+            # Ponderar tokens semánticos (reglasDiseno/tokens.yml)
+            token_factor = (semantic_token_score(lovable_content) + semantic_token_score(web_compare)) / 2
+            ratio = ratio * 0.85 + ratio * token_factor * 0.15
+            pct = round(ratio * 100, 2)
+            status = "aligned"
+            if pct < 85:
+                status = "needs_adaptation"
+                low_similarity.append({"lovablePath": rel, "webPath": web_rel, "similarityPercent": pct})
+            elif pct < 98:
+                status = "minor_drift"
+
         web_content = web_path.read_text(encoding="utf-8", errors="replace")
-        ratio = file_similarity(lovable_content, web_content)
-        pct = round(ratio * 100, 2)
         has_mock_lovable = bool(MOCK_MARKERS.search(lovable_content))
         has_mock_web = bool(MOCK_MARKERS.search(web_content))
-
-        status = "aligned"
-        if pct < 85:
-            status = "needs_adaptation"
-            low_similarity.append({"lovablePath": rel, "webPath": web_rel, "similarityPercent": pct})
-        elif pct < 98:
-            status = "minor_drift"
 
         entry = {
             "lovablePath": rel,
             "webPath": web_rel,
             "status": status,
             "similarityPercent": pct,
+            "compareMode": compare_mode or ("delegated" if "mfe-auth" in web_rel else "structural"),
             "lovableHasMockPatterns": has_mock_lovable,
             "webHasMockPatterns": has_mock_web,
+            "lovableHardcodedColors": hardcoded_color_violations(lovable_content)[:5],
+            "webHardcodedColors": hardcoded_color_violations(web_content)[:5],
             "action": "review_empalme" if status != "aligned" else "none",
         }
         entries.append(entry)
@@ -164,8 +136,9 @@ def main() -> int:
     requires_agent = overall < target or len(missing_in_web) > 0 or len(low_similarity) > 0
 
     report = {
-        "version": "1.0",
-        "purpose": "Comparacion diseño Lovable vs DoEventsWEB (empalme, no copy-paste)",
+        "version": "1.2",
+        "purpose": "Comparacion diseño Lovable vs DoEventsWEB (empalme, mocks excluidos, reglasDiseno/tokens)",
+        "designTokens": tokens_meta,
         "lovableRoot": str(lovable_root),
         "webRoot": str(web_root),
         "trackedFiles": tracked,

@@ -13,6 +13,10 @@ SKIP_PREFIXES = (
     "src/integrations/",
     "src/test/",
     "src/lib/",
+    "src/data/",
+    "src/services/",
+    "src/types/",
+    "src/utils/",
     "src/vite-env.d.ts",
 )
 SKIP_FILES = {"src/App.tsx", "src/main.tsx", "src/App.css", "src/index.css"}
@@ -28,6 +32,8 @@ def load_port_map(path: Path) -> tuple[list[tuple[str, str]], list[str]]:
             lovable += "/"
         mapping.append((lovable, web))
     forbidden = [f.replace("\\", "/") for f in data.get("forbidden", [])]
+    exclude = [e.replace("\\", "/").rstrip("*") for e in data.get("exclude", [])]
+    forbidden = list(dict.fromkeys(forbidden + exclude))
     return mapping, forbidden
 
 

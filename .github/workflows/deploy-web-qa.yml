@@ -69,7 +69,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: us-east-2
           CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
-        run: bash -c '
+        run: |
           set -euo pipefail
           BUCKET="${S3_BUCKET:-doevents-web-qa}"
           CF="${CLOUDFRONT_DISTRIBUTION_ID:-E3UV9NHXADGSAJ}"
@@ -82,5 +82,4 @@ jobs:
           aws s3 cp packages/shell/dist/index.html "s3://${BUCKET}/index.html" --region us-east-2 \
             --content-type "text/html" --cache-control "public, max-age=0, must-revalidate"
           aws cloudfront create-invalidation --distribution-id "$CF" --paths "/*"
-          echo "Deploy QA manual: https://qa.doeventsapp.com"
-        '
+          echo "Deploy QA manual completado en qa.doeventsapp.com"

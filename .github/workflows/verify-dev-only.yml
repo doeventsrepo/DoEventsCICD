@@ -22,8 +22,9 @@ jobs:
           assert p['targetEnvironment'] == 'dev', 'targetEnvironment debe ser dev'
           assert p['forbidAutomaticQaDeploy'] is True
           assert p['autoDeployQaOnDevelopMerge'] is False
-          assert c['awsDev']['web']['domain'] == 'dev.doeventsapp.com'
-          assert c['awsDev']['buildCommand'] == 'npm run build:devaws'
+          aws_dev = c['cloud']['providers']['aws']['dev']
+          assert aws_dev['web']['domain'] == 'dev.doeventsapp.com'
+          assert aws_dev['buildCommand'] == 'npm run build:devaws'
           print('OK cicd.config.json')
           "
 

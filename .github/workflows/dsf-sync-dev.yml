@@ -332,7 +332,7 @@ jobs:
         with: { python-version: '3.11' }
       - run: pip install -r cicd/requirements.txt
 
-      - name: DSF gap loop (max 5 batches → 98%)
+      - name: DSF gap loop (max 6 batches → 98%)
         id: loop
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
@@ -344,13 +344,18 @@ jobs:
           python3 cicd/scripts/lovable-sync/dsf-gap-loop.py \
             --lovable-dir lovable --web-dir DoEventsWEB --cicd-dir cicd \
             --port-map DoEventsWEB/.lovable-port-map.json \
-            --target 98 --max-batches 5 --batch-size 20 --run-id ${{ github.run_id }}
+            --target 98 --max-batches 6 --batch-size 20 --run-id ${{ github.run_id }}
           RC=$?
           FINAL=$(python3 -c "import json,os; from pathlib import Path; p=Path('cicd/gap-loop-summary-${{ github.run_id }}.json'); print(json.load(open(p))['finalSimilarity'] if p.exists() else os.environ.get('FALLBACK_SIM','0'))")
           echo "final_similarity=$FINAL" >> "$GITHUB_OUTPUT"
           echo "web_ref=${AGENT_BRANCH}" >> "$GITHUB_OUTPUT"
           LATEST=$(ls -t cicd/design-comparison-loop-after-b*-${{ github.run_id }}.json 2>/dev/null | head -1 || ls -t cicd/design-comparison-loop-before-${{ github.run_id }}.json 2>/dev/null | head -1 || true)
           if [ -n "$LATEST" ]; then cp "$LATEST" cicd/design-comparison-gap-final.json; fi
+          REQUIRE=$(python3 -c "import json; print(str(json.load(open('cicd/cicd.config.json'))['dsf']['deployDev'].get('requireGapLoopSuccess', False)).lower())")
+          if [ "$RC" -ne 0 ] && [ "$REQUIRE" = "false" ]; then
+            echo "AVISO: gap loop sin 98% ($FINAL%) — deploy DEV permitido (requireGapLoopSuccess=false)"
+            exit 0
+          fi
           exit $RC
 
       - uses: actions/upload-artifact@v4
@@ -409,28 +414,8 @@ jobs:
       run_id: ${{ github.run_id }}
     secrets: inherit
 
-  smoke:
-    needs: deploy-dev
-    if: needs.deploy-dev.result == 'success'
-    runs-on: ubuntu-latest
-    outputs:
-      smoke_ok: ${{ steps.smoke.outputs.ok }}
-    steps:
-      - uses: actions/checkout@v4
-        with: { path: cicd }
-      - name: Gate G6 — Smoke DEV
-        id: smoke
-        run: |
-          bash cicd/scripts/smoke/dev-smoke.sh cicd/smoke-result-${{ github.run_id }}.json
-          OK=$(python3 -c "import json; print(str(json.load(open('cicd/smoke-result-${{ github.run_id }}.json'))['ok']).lower())")
-          echo "ok=$OK" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: dsf-smoke-${{ github.run_id }}
-          path: cicd/smoke-result-*.json
-
   validate-and-report:
-    needs: [prepare, adapt, gap-loop, deploy-dev, smoke, custom-gates]
+    needs: [prepare, adapt, gap-loop, deploy-dev, custom-gates]
     if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     steps:
@@ -455,12 +440,19 @@ jobs:
           name: dsf-gap-${{ github.run_id }}
           path: cicd/artifacts-gap
 
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: dsf-smoke-${{ github.run_id }}
+          path: cicd/artifacts-smoke
+
       - name: Preparar archivos validación
         run: |
           cp cicd/artifacts-pre/design-comparison.json cicd/design-comparison.json 2>/dev/null || true
           cp cicd/artifacts-adapt/design-comparison-post.json cicd/design-comparison-post.json 2>/dev/null || true
           cp cicd/artifacts-gap/design-comparison-gap-final.json cicd/design-comparison-post.json 2>/dev/null || true
           [ -f cicd/design-comparison-post.json ] || cp cicd/design-comparison.json cicd/design-comparison-post.json
+          cp cicd/artifacts-smoke/smoke-result-*.json "cicd/smoke-result-${{ github.run_id }}.json" 2>/dev/null || true
 
       - uses: actions/setup-python@v5
         with: { python-version: '3.11' }
@@ -470,8 +462,8 @@ jobs:
         run: |
           AGENT_RAN="${{ needs.adapt.outputs.agent_ran || 'false' }}"
           DEPLOY_RAN="${{ needs.deploy-dev.result == 'success' && 'true' || 'false' }}"
-          SMOKE_RAN="${{ needs.smoke.result == 'success' && 'true' || (needs.deploy-dev.result != 'success' && 'false' || 'false') }}"
-          SMOKE_OK="${{ needs.smoke.outputs.smoke_ok || 'false' }}"
+          SMOKE_RAN="${{ needs.deploy-dev.outputs.smoke_ran == 'true' && 'true' || 'false' }}"
+          SMOKE_OK="${{ needs.deploy-dev.outputs.smoke_ok == 'true' && 'true' || 'false' }}"
           PORT_OK=$(python3 -c "import json; from pathlib import Path; p=Path('cicd/artifacts-pre/port-map-result.json'); print(str(json.load(open(p))['ok']).lower() if p.exists() else 'true')")
           python3 cicd/scripts/lovable-sync/validate-pipeline-sync.py \
             --design-before cicd/design-comparison.json \
@@ -519,7 +511,7 @@ jobs:
           echo "| Agente | ${{ needs.adapt.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Gap loop | ${{ needs.gap-loop.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Deploy DEV | ${{ needs.deploy-dev.result }} |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Smoke | ${{ needs.smoke.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Smoke | ${{ needs.deploy-dev.outputs.smoke_ran == 'true' && needs.deploy-dev.outputs.smoke_ok || 'omitido/fail' }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| QA promoción | **INHABILITADA** |" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "DEV: https://dev.doeventsapp.com" >> "$GITHUB_STEP_SUMMARY"

@@ -21,6 +21,13 @@ on:
       run_id:
         type: string
         default: local
+    outputs:
+      smoke_ok:
+        description: Gate G6 smoke DEV
+        value: ${{ jobs.smoke.outputs.smoke_ok }}
+      smoke_ran:
+        description: Smoke ejecutado tras deploy
+        value: ${{ jobs.smoke.outputs.smoke_ran }}
 
 concurrency:
   group: deploy-web-dev
@@ -121,3 +128,25 @@ jobs:
         run: |
           bash cicd/scripts/deploy/publish-artifact.sh . build-artifact \
             "${{ inputs.lovable_sha }}" "${{ inputs.run_id }}" || echo "AVISO: artefacto no publicado (bucket opcional)"
+
+  smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    outputs:
+      smoke_ok: ${{ steps.smoke.outputs.ok }}
+      smoke_ran: ${{ steps.smoke.outputs.ran }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { path: cicd }
+      - name: Gate G6 — Smoke DEV
+        id: smoke
+        run: |
+          echo "ran=true" >> "$GITHUB_OUTPUT"
+          bash cicd/scripts/smoke/dev-smoke.sh "cicd/smoke-result-${{ inputs.run_id }}.json"
+          OK=$(python3 -c "import json; print(str(json.load(open('cicd/smoke-result-${{ inputs.run_id }}.json'))['ok']).lower())")
+          echo "ok=$OK" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dsf-smoke-${{ inputs.run_id }}
+          path: cicd/smoke-result-*.json

@@ -11,7 +11,7 @@ except ImportError:
     print("Instalar PyYAML")
     sys.exit(1)
 
-    REQUIRED = [
+REQUIRED = [
     "reglasCalidad/required-checks.yml",
     "reglasCalidad/forbidden-patterns.yml",
     "reglasCalidad/risk-policy.yml",

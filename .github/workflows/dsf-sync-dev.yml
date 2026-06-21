@@ -144,6 +144,8 @@ jobs:
         run: |
           python3 cicd/scripts/lovable-sync/bootstrap-dsf-index.py \
             --lovable-dir lovable --web-dir DoEventsWEB
+          python3 cicd/scripts/lovable-sync/complete-dsf-lovable.py \
+            --lovable-dir lovable --web-dir DoEventsWEB --skip-bootstrap
 
       - name: Validar estructura DSF v1.1 (strict)
         run: |

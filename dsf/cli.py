@@ -73,6 +73,22 @@ def cmd_local(args: argparse.Namespace) -> int:
     return subprocess.run(cmd, cwd=script.parent).returncode
 
 
+def cmd_apps_list(_: argparse.Namespace) -> int:
+    from dsf.app_resolver import list_applications
+
+    apps = list_applications(root())
+    print(json.dumps(apps, indent=2, ensure_ascii=False))
+    return 0
+
+
+def cmd_apps_show(args: argparse.Namespace) -> int:
+    from dsf.app_resolver import application_env, resolve_application
+
+    app = resolve_application(args.app_id, cicd_root=root())
+    print(json.dumps({"application": app, "env": application_env(app)}, indent=2, ensure_ascii=False))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="dsf", description="Design Sync Framework CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -111,6 +127,14 @@ def main() -> int:
     p_loc.add_argument("--live-agent", action="store_true")
     p_loc.add_argument("--deploy", action="store_true")
     p_loc.set_defaults(func=cmd_local)
+
+    p_apps = sub.add_parser("apps", help="Registro empresarial de aplicaciones")
+    p_apps_sub = p_apps.add_subparsers(dest="apps_cmd", required=True)
+    p_apps_list = p_apps_sub.add_parser("list", help="Listar apps registradas")
+    p_apps_list.set_defaults(func=cmd_apps_list)
+    p_apps_show = p_apps_sub.add_parser("show", help="Ver config de una app")
+    p_apps_show.add_argument("app_id")
+    p_apps_show.set_defaults(func=cmd_apps_show)
 
     args = parser.parse_args()
     return args.func(args)

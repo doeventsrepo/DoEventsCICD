@@ -2,6 +2,42 @@
   "version": "3.1",
   "framework": "DSF",
   "project": "DoEvents",
+  "applications": {
+    "default": "doevents",
+    "registry": {
+      "doevents": {
+        "displayName": "Do.Events",
+        "enabled": true,
+        "repositories": {
+          "design": "doeventsrepo/discover-joyful-feed",
+          "frontend": "doeventsrepo/DoEventsWEB",
+          "backend": "doeventsrepo/DoEventsBack",
+          "cicd": "doeventsrepo/DoEventsCICD"
+        },
+        "branches": {
+          "design": "main",
+          "webCicd": "feature/cicd/dev-automation"
+        },
+        "paths": {
+          "lovableUi": "src",
+          "webLovable": "packages/shell/src/lovable",
+          "webBridge": "packages/shell/src/lovable-bridge",
+          "portMap": ".lovable-port-map.json"
+        },
+        "deploy": {
+          "devDomain": "dev.doeventsapp.com",
+          "buildCommand": "npm run build:devaws",
+          "buildMode": "devaws",
+          "cloudProvider": "aws",
+          "cloudEnv": "dev",
+          "webBucket": "doevents-web-dev",
+          "cloudFrontDistributionId": "E1AIDTCT83PAW5",
+          "apiDomain": "api-dev.doeventsapp.com"
+        }
+      }
+    },
+    "note": "Registro empresarial: un CICD, N apps Lovable. Cada repo Lovable dispara sync con app_id."
+  },
   "description": "Design Sync Framework multi-app — Lovable → empalme → agentes → gates → DEV. QA/prod manual.",
   "dsfCore": {
     "framework": "DSF",

@@ -1,0 +1,34 @@
+{
+  "displayName": "Mi Nueva App",
+  "enabled": true,
+  "repositories": {
+    "design": "mi-org/mi-app-lovable",
+    "frontend": "mi-org/MiAppWEB",
+    "backend": "mi-org/MiAppBack",
+    "cicd": "mi-org/DoEventsCICD"
+  },
+  "branches": {
+    "design": "main",
+    "webCicd": "feature/cicd/dev-automation"
+  },
+  "paths": {
+    "lovableUi": "src",
+    "webLovable": "packages/shell/src/lovable",
+    "webBridge": "packages/shell/src/lovable-bridge",
+    "portMap": ".lovable-port-map.json"
+  },
+  "deploy": {
+    "devDomain": "dev.miapp.com",
+    "buildCommand": "npm run build:devaws",
+    "buildMode": "devaws",
+    "cloudProvider": "aws",
+    "cloudEnv": "dev",
+    "webBucket": "miapp-web-dev",
+    "cloudFrontDistributionId": "CONFIGURE_DIST_ID",
+    "apiDomain": "api-dev.miapp.com"
+  },
+  "dsf": {
+    "qaPromotionBlocked": true,
+    "note": "Copiar este bloque a cicd.config.json → applications.registry.<app_id>"
+  }
+}

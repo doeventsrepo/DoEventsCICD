@@ -35,6 +35,10 @@ on:
         options: ['true', 'false']
       web_cicd_branch:
         default: feature/cicd/dev-automation
+      app_id:
+        description: ID aplicación (applications.registry en cicd.config.json)
+        default: doevents
+        type: string
   repository_dispatch:
     types: [lovable-sync, dsf-sync]
   workflow_call:
@@ -60,30 +64,62 @@ on:
       web_cicd_branch:
         type: string
         default: feature/cicd/dev-automation
+      app_id:
+        type: string
+        default: doevents
 
 concurrency:
-  group: dsf-sync-dev
+  group: dsf-sync-${{ github.event.client_payload.app_id || inputs.app_id || github.event.inputs.app_id || 'doevents' }}
   cancel-in-progress: false
 
 env:
   CICD_DIR: ${{ github.workspace }}/cicd
-  DESIGN_REPO: doeventsrepo/discover-joyful-feed
-  WEB_REPO: doeventsrepo/DoEventsWEB
-  BACK_REPO: doeventsrepo/DoEventsBack
-  WEB_CICD_BRANCH: feature/cicd/dev-automation
   DSF_TARGET_SIM: '98'
   DSF_DEPLOY_DEV: ${{ inputs.deploy_dev_after || github.event.inputs.deploy_dev_after || github.event.client_payload.deploy_dev_after || 'true' }}
+  DSF_APP_ID: ${{ github.event.client_payload.app_id || inputs.app_id || github.event.inputs.app_id || 'doevents' }}
 
 permissions:
   contents: read
 
 jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      app_id: ${{ steps.app.outputs.app_id }}
+      design_repo: ${{ steps.app.outputs.design_repo }}
+      web_repo: ${{ steps.app.outputs.web_repo }}
+      back_repo: ${{ steps.app.outputs.back_repo }}
+      web_cicd_branch: ${{ steps.app.outputs.web_cicd_branch }}
+      deploy_dev_domain: ${{ steps.app.outputs.deploy_dev_domain }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cicd
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Resolver aplicación (registro empresarial)
+        id: app
+        env:
+          APP_ID: ${{ env.DSF_APP_ID }}
+        run: python3 cicd/dsf/resolve_app_github.py --app-id "$APP_ID" --cicd-dir cicd
+
+      - name: Resumen aplicación
+        run: |
+          echo "## DSF App: ${{ steps.app.outputs.app_id }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Design: \`${{ steps.app.outputs.design_repo }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- WEB: \`${{ steps.app.outputs.web_repo }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Rama WEB: \`${{ steps.app.outputs.web_cicd_branch }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- DEV: https://${{ steps.app.outputs.deploy_dev_domain }}" >> "$GITHUB_STEP_SUMMARY"
+
   guard:
+    needs: resolve
     runs-on: ubuntu-latest
     steps:
       - name: Validar rama y QA inhabilitado
         env:
-          WEB_BRANCH: ${{ inputs.web_cicd_branch || github.event.inputs.web_cicd_branch || github.event.client_payload.web_cicd_branch || env.WEB_CICD_BRANCH }}
+          WEB_BRANCH: ${{ inputs.web_cicd_branch || github.event.inputs.web_cicd_branch || github.event.client_payload.web_cicd_branch || needs.resolve.outputs.web_cicd_branch }}
+          EXPECTED_BRANCH: ${{ needs.resolve.outputs.web_cicd_branch }}
         run: |
           set -euo pipefail
           branch="${WEB_BRANCH,,}"
@@ -92,13 +128,14 @@ jobs:
               echo "ERROR: rama prohibida: $WEB_BRANCH" >&2; exit 1
             fi
           done
-          if [ "$branch" != "feature/cicd/dev-automation" ]; then
-            echo "ERROR: solo feature/cicd/dev-automation" >&2; exit 1
+          if [ "$branch" != "${EXPECTED_BRANCH,,}" ]; then
+            echo "ERROR: rama WEB debe ser $EXPECTED_BRANCH (app ${{ needs.resolve.outputs.app_id }})" >&2
+            exit 1
           fi
-          echo "DSF guard OK — QA promoción inhabilitada por cicd.config.json"
+          echo "DSF guard OK — app ${{ needs.resolve.outputs.app_id }} — QA inhabilitada"
 
   prepare:
-    needs: guard
+    needs: [resolve, guard]
     runs-on: ubuntu-latest
     outputs:
       lovable_sha: ${{ steps.manifest.outputs.sha }}
@@ -106,6 +143,9 @@ jobs:
       similarity_percent: ${{ steps.design.outputs.similarity_percent }}
       web_branch: ${{ steps.branch.outputs.web_branch }}
       has_changes: ${{ steps.manifest.outputs.has_changes }}
+      app_id: ${{ needs.resolve.outputs.app_id }}
+      design_repo: ${{ needs.resolve.outputs.design_repo }}
+      web_repo: ${{ needs.resolve.outputs.web_repo }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -113,19 +153,21 @@ jobs:
 
       - name: Origen del sync
         run: |
-          echo "## DSF Sync DEV" >> "$GITHUB_STEP_SUMMARY"
+          echo "## DSF Sync DEV — ${{ needs.resolve.outputs.app_id }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Evento: ${{ github.event_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- App: **${{ needs.resolve.outputs.app_id }}**" >> "$GITHUB_STEP_SUMMARY"
           echo "- Lovable ref: ${{ inputs.lovable_ref || github.event.client_payload.ref || 'main' }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Deploy DEV: ${{ env.DSF_DEPLOY_DEV }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- QA promoción: **inhabilitada**" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Rama WEB: feature/cicd/dev-automation (fase develop/DEV)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Rama WEB: ${{ needs.resolve.outputs.web_cicd_branch }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- DEV: ${{ needs.resolve.outputs.deploy_dev_domain }}" >> "$GITHUB_STEP_SUMMARY"
 
       - id: branch
-        run: echo "web_branch=${{ inputs.web_cicd_branch || github.event.inputs.web_cicd_branch || env.WEB_CICD_BRANCH }}" >> "$GITHUB_OUTPUT"
+        run: echo "web_branch=${{ inputs.web_cicd_branch || github.event.inputs.web_cicd_branch || github.event.client_payload.web_cicd_branch || needs.resolve.outputs.web_cicd_branch }}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v4
         with:
-          repository: ${{ env.DESIGN_REPO }}
+          repository: ${{ needs.resolve.outputs.design_repo }}
           ref: ${{ inputs.lovable_ref || github.event.client_payload.ref || 'main' }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: lovable
@@ -133,7 +175,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          repository: ${{ env.WEB_REPO }}
+          repository: ${{ needs.resolve.outputs.web_repo }}
           ref: ${{ steps.branch.outputs.web_branch }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: DoEventsWEB
@@ -279,7 +321,7 @@ jobs:
           git add ReglasAgente/ .lovable-port-map.json docs/changes/ 2>/dev/null || true
           git diff --cached --quiet || {
             git commit -m "chore(dsf): preparar empalme Lovable→DEV [run:${{ github.run_id }}]"
-            git push "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git" "${WEB_CICD_BRANCH}"
+            git push "https://x-access-token:${WEB_PAT}@github.com/${{ needs.prepare.outputs.web_repo }}.git" "${WEB_CICD_BRANCH}"
           }
 
   agents-pre-adapt:
@@ -310,14 +352,14 @@ jobs:
         with: { path: cicd }
       - uses: actions/checkout@v4
         with:
-          repository: ${{ env.DESIGN_REPO }}
+          repository: ${{ needs.prepare.outputs.design_repo }}
           ref: ${{ needs.prepare.outputs.lovable_sha }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: lovable
           fetch-depth: 0
       - uses: actions/checkout@v4
         with:
-          repository: ${{ env.WEB_REPO }}
+          repository: ${{ needs.resolve.outputs.web_repo }}
           ref: ${{ needs.prepare.outputs.web_branch }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: DoEventsWEB
@@ -353,7 +395,7 @@ jobs:
           cd DoEventsWEB
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${WEB_PAT}@github.com/${{ env.WEB_REPO }}.git"
+          git remote set-url origin "https://x-access-token:${WEB_PAT}@github.com/${{ needs.prepare.outputs.web_repo }}.git"
           git add -A
           if git diff --staged --quiet; then
             echo "Sin cambios WEB tras empalme Python"
@@ -407,13 +449,13 @@ jobs:
         with: { path: cicd }
       - uses: actions/checkout@v4
         with:
-          repository: ${{ env.DESIGN_REPO }}
+          repository: ${{ needs.prepare.outputs.design_repo }}
           ref: ${{ needs.prepare.outputs.lovable_sha }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: lovable
       - uses: actions/checkout@v4
         with:
-          repository: ${{ env.WEB_REPO }}
+          repository: ${{ needs.resolve.outputs.web_repo }}
           ref: ${{ needs.adapt.result == 'success' && needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: DoEventsWEB
@@ -465,7 +507,7 @@ jobs:
         with: { path: cicd }
       - uses: actions/checkout@v4
         with:
-          repository: ${{ env.WEB_REPO }}
+          repository: ${{ needs.resolve.outputs.web_repo }}
           ref: ${{ needs.adapt.result == 'success' && needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: DoEventsWEB

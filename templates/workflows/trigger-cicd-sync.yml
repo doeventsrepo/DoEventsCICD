@@ -1,4 +1,5 @@
-# Copiar a discover-joyful-feed/.github/workflows/trigger-cicd-sync.yml
+# Copiar a <repo-lovable>/.github/workflows/trigger-cicd-sync.yml
+# Ajustar APP_ID al registrar la app en cicd.config.json → applications.registry
 name: Trigger DSF Sync (DEV)
 
 on:
@@ -8,38 +9,67 @@ on:
       - 'src/**'
       - 'public/**'
       - 'reglasActuacion/**'
+      - 'reglasDiseno/**'
+      - 'reglasEmpalme/**'
+      - 'reglasCalidad/**'
+      - 'reglasRelease/**'
+      - 'reglasObservabilidad/**'
+      - 'contratosBackend/**'
+      - 'reports/dsf/**'
+      - 'decision-log.md'
       - 'package.json'
       - 'tailwind.config.ts'
       - 'index.html'
   workflow_dispatch:
     inputs:
-      run_agent:
+      deploy_dev_after:
         default: 'true'
         type: choice
         options: ['true', 'false']
-      agent_mode:
-        default: frontend-only
-        type: choice
-        options: [frontend-only, fullstack]
+
+env:
+  DSF_APP_ID: mi-app-id
+  DSF_CICD_REPO: mi-org/DoEventsCICD
 
 concurrency:
-  group: trigger-dsf-sync-main
+  group: trigger-dsf-${{ env.DSF_APP_ID }}
   cancel-in-progress: true
 
 jobs:
   trigger:
     runs-on: ubuntu-latest
     steps:
-      - name: Disparar DSF Sync DEV
+      - name: Disparar DSF Sync DEV (repository_dispatch)
+        env:
+          GH_TOKEN: ${{ secrets.DOEVENTS_CICD_PAT }}
+          LOVABLE_SHA: ${{ github.sha }}
+          DEPLOY_DEV: ${{ inputs.deploy_dev_after || 'true' }}
+        run: |
+          set -euo pipefail
+          echo "App ${DSF_APP_ID} — Lovable $LOVABLE_SHA → ${DSF_CICD_REPO}"
+          gh api repos/${DSF_CICD_REPO}/dispatches \
+            --method POST \
+            -f event_type=lovable-sync \
+            -f "client_payload[ref]=$LOVABLE_SHA" \
+            -f "client_payload[app_id]=${DSF_APP_ID}" \
+            -f "client_payload[run_agent]=true" \
+            -f "client_payload[agent_mode]=frontend-only" \
+            -f "client_payload[deploy_dev_after]=$DEPLOY_DEV" \
+            -f "client_payload[run_gap_loop]=false" \
+            -f "client_payload[cursor_fallback]=false" \
+            -f "client_payload[web_cicd_branch]=feature/cicd/dev-automation"
+
+      - name: Fallback workflow_dispatch
+        if: failure()
         env:
           GH_TOKEN: ${{ secrets.DOEVENTS_CICD_PAT }}
         run: |
-          gh workflow run "dsf-sync-dev.yml" \
-            --repo doeventsrepo/DoEventsCICD \
+          gh workflow run "DSF Sync DEV" \
+            --repo "${DSF_CICD_REPO}" \
             --ref main \
-            -f run_agent="${{ inputs.run_agent || 'true' }}" \
-            -f agent_mode="${{ inputs.agent_mode || 'frontend-only' }}" \
+            -f app_id="${DSF_APP_ID}" \
             -f lovable_ref="${{ github.sha }}" \
-            -f deploy_dev_after=true \
-            -f run_gap_loop=true \
+            -f deploy_dev_after="${{ inputs.deploy_dev_after || 'true' }}" \
+            -f run_gap_loop=false \
+            -f cursor_fallback=false \
             -f web_cicd_branch=feature/cicd/dev-automation

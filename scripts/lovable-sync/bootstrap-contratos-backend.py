@@ -247,6 +247,13 @@ def main() -> int:
     attach_web_keys(endpoints, web_uri_to_key)
 
     write_endpoints_yml(out_path, endpoints, api_base=api_base, dry_run=args.dry_run)
+
+    if not args.dry_run:
+        from link_contratos_consumers import apply_to_file
+
+        link_summary = apply_to_file(lovable_root, dry_run=False)
+        print(f"Consumers enlazados: {link_summary}")
+
     return 0
 
 

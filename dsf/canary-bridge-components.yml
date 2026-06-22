@@ -1,0 +1,37 @@
+# DSF v1.1 — Canario empalme delta-only (componentes con lógica WEB / bridge)
+version: "1.0"
+description: >
+  Componentes críticos donde el empalme Python debe usar delta-only
+  y preservar imports @doevents/shared, StoryAvatar, hooks WEB.
+canonicalEnvironment: dev
+components:
+  - lovablePath: src/components/feed/PostCard.tsx
+    ruleId: publicaciones.feed-principal
+    bridgeMarkers: ["@doevents/shared", "StoryAvatar", "onOpenStory"]
+  - lovablePath: src/components/feed/StoryViewer.tsx
+    ruleId: publicaciones.historias-vivos
+    bridgeMarkers: ["@doevents/shared"]
+  - lovablePath: src/components/feed/CommentsSheet.tsx
+    ruleId: publicaciones.feed-principal
+    bridgeMarkers: ["@doevents/shared"]
+  - lovablePath: src/components/feed/ProfileView.tsx
+    ruleId: usuarios.perfil-publico
+    bridgeMarkers: ["@doevents/shared"]
+  - lovablePath: src/components/feed/MyPostsView.tsx
+    ruleId: publicaciones.feed-principal
+    bridgeMarkers: ["@doevents/shared"]
+  - lovablePath: src/components/feed/GlobalSearchView.tsx
+    ruleId: publicaciones.busqueda-global
+    bridgeMarkers: ["@doevents/shared"]
+  - lovablePath: src/components/feed/MapView.tsx
+    ruleId: lugares.mapa-explorador
+    bridgeMarkers: ["lovable-bridge"]
+  - lovablePath: src/components/feed/EventsView.tsx
+    ruleId: publicaciones.feed-principal
+    bridgeMarkers: ["@doevents/shared"]
+  - lovablePath: src/components/feed/NotificationsSheet.tsx
+    ruleId: notificaciones.sistema
+    bridgeMarkers: ["@doevents/shared"]
+  - lovablePath: src/components/feed/CreatePostSheet.tsx
+    ruleId: publicaciones.crear-post
+    bridgeMarkers: ["@doevents/shared"]

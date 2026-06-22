@@ -154,6 +154,13 @@ jobs:
           python3 cicd/scripts/lovable-sync/validate-agent-gate.py DoEventsWEB
           python3 cicd/scripts/lovable-sync/validate-reglas-cicd.py cicd
 
+      - name: DSF bridge canary (delta-only)
+        run: |
+          python3 cicd/scripts/lovable-sync/run-dsf-bridge-canary.py \
+            --lovable-dir lovable --web-dir DoEventsWEB \
+            --port-map DoEventsWEB/.lovable-port-map.json \
+            --cicd-dir cicd --run-id ${{ github.run_id }}
+
       - name: Analizar cambios Lovable
         id: manifest
         working-directory: lovable

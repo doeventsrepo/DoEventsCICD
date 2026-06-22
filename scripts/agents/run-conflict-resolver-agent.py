@@ -27,11 +27,22 @@ def main() -> int:
 
     lovable = Path(args.lovable_dir).resolve()
     web = Path(args.web_dir).resolve()
-    ui_paths: list[str] = []
+    manifest: dict = {}
+    ui_paths: list[str] | None = None
     if args.change_manifest and Path(args.change_manifest).is_file():
-        ui_paths = changed_ui_paths(load_manifest(Path(args.change_manifest)))
+        manifest = load_manifest(Path(args.change_manifest))
+        ui_paths = changed_ui_paths(manifest)
 
-    conflicts = detect_conflicts(lovable, web, ui_paths or None)
+    # Sin cambios UI en el diff: no escanear los 215 componentes (evita falsos positivos)
+    if ui_paths is not None and len(ui_paths) == 0:
+        conflicts: list[dict] = []
+        skipped = "no_ui_changes_in_manifest"
+    elif ui_paths:
+        conflicts = detect_conflicts(lovable, web, ui_paths)
+        skipped = ""
+    else:
+        conflicts = detect_conflicts(lovable, web, None)
+        skipped = ""
     blocked = has_blocking_conflicts(conflicts)
 
     result = {
@@ -44,6 +55,7 @@ def main() -> int:
         "requiresManualReview": blocked or bool(conflicts),
         "passed": not blocked,
         "decision": "blocked" if blocked else ("manual-review" if conflicts else "approved"),
+        "skipped": skipped,
     }
 
     out = artifacts_dir(args.run_id) / f"conflict-resolver-{args.run_id}.json"

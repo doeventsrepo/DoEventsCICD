@@ -72,6 +72,7 @@ env:
   BACK_REPO: doeventsrepo/DoEventsBack
   WEB_CICD_BRANCH: feature/cicd/dev-automation
   DSF_TARGET_SIM: '98'
+  DSF_DEPLOY_DEV: ${{ inputs.deploy_dev_after || github.event.inputs.deploy_dev_after || github.event.client_payload.deploy_dev_after || 'true' }}
 
 permissions:
   contents: read
@@ -109,6 +110,15 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: cicd
+
+      - name: Origen del sync
+        run: |
+          echo "## DSF Sync DEV" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Evento: ${{ github.event_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Lovable ref: ${{ inputs.lovable_ref || github.event.client_payload.ref || 'main' }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Deploy DEV: ${{ env.DSF_DEPLOY_DEV }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- QA promoción: **inhabilitada**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Rama WEB: feature/cicd/dev-automation (fase develop/DEV)" >> "$GITHUB_STEP_SUMMARY"
 
       - id: branch
         run: echo "web_branch=${{ inputs.web_cicd_branch || github.event.inputs.web_cicd_branch || env.WEB_CICD_BRANCH }}" >> "$GITHUB_OUTPUT"
@@ -498,7 +508,7 @@ jobs:
       needs.custom-gates.result == 'success' &&
       (needs.gap-loop.result == 'success' || needs.gap-loop.result == 'failure' || needs.gap-loop.result == 'skipped') &&
       (needs.adapt.result == 'success' || needs.adapt.result == 'failure' || needs.adapt.result == 'skipped') &&
-      (inputs.deploy_dev_after != 'false' && github.event.inputs.deploy_dev_after != 'false')
+      env.DSF_DEPLOY_DEV != 'false'
     uses: ./.github/workflows/deploy-web-dev.yml
     with:
       web_ref: ${{ needs.gap-loop.outputs.web_ref || (needs.adapt.result == 'success' && needs.adapt.outputs.agent_branch) || needs.prepare.outputs.web_branch }}

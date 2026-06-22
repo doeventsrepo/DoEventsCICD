@@ -128,6 +128,15 @@
     "requirePortMapCoverage": true,
     "publishBuildArtifact": true,
     "devValidationPhase": true,
+    "lovableAutoSync": {
+      "enabled": true,
+      "triggerOnLovablePush": true,
+      "targetEnvironment": "dev",
+      "webBranch": "feature/cicd/dev-automation",
+      "deployAfterGates": true,
+      "qaPromotionBlocked": true,
+      "note": "Push Lovable main → trigger-cicd-sync → DSF Sync DEV → dev.doeventsapp.com. Rama git develop NO se usa en auto-sync."
+    },
     "deployDev": {
       "requireGapLoopSuccess": false,
       "note": "Desplegar DEV tras adapt+gap aunque similitud <98%; QA sigue bloqueado"

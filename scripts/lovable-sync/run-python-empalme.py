@@ -29,11 +29,14 @@ def load_comparison(path: Path) -> list[dict]:
     return data.get("files") or []
 
 
-def load_changed_paths(manifest_path: Path) -> list[str]:
-    if not manifest_path.is_file():
-        return []
-    data = json.loads(manifest_path.read_text(encoding="utf-8"))
-    return [f["path"] for f in data.get("changedFiles", []) if f.get("kind") == "ui"]
+def load_change_manifest(path: Path) -> dict:
+    if not path.is_file():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_changed_paths(manifest: dict) -> list[str]:
+    return [f["path"] for f in manifest.get("changedFiles", []) if f.get("kind") == "ui"]
 
 
 def main() -> int:
@@ -55,7 +58,8 @@ def main() -> int:
     web_root = Path(args.web_dir).resolve()
     port_map = Path(args.port_map).resolve()
     comparison_files = load_comparison(Path(args.comparison)) if args.comparison else []
-    changed = load_changed_paths(Path(args.change_manifest)) if args.change_manifest else []
+    manifest = load_change_manifest(Path(args.change_manifest)) if args.change_manifest else {}
+    changed = load_changed_paths(manifest)
 
     if args.scope == "diff-only" and not changed:
         print("Sin cambios UI en manifiesto — empalme Python omitido (scope=diff-only)")
@@ -94,12 +98,21 @@ def main() -> int:
     enriched = build_change_manifest_enriched(lovable_root, changed) if changed else []
     enriched_map = {e["lovablePath"]: e for e in enriched}
 
+    from empalme_delta import load_anti_regression_config
+
+    anti_regression = load_anti_regression_config(Path(__file__).resolve().parents[2])
+    lovable_before_rev = manifest.get("before")
+    lovable_after_rev = manifest.get("after") or manifest.get("lovableSha")
+
     empalme = run_empalme(
         lovable_root=lovable_root,
         web_root=web_root,
         port_map_path=port_map,
         targets=targets,
         dry_run=args.dry_run,
+        lovable_before_rev=lovable_before_rev,
+        lovable_after_rev=lovable_after_rev,
+        anti_regression=anti_regression,
     )
 
     payload = {
@@ -112,6 +125,9 @@ def main() -> int:
         "cursorRequiredCount": len(empalme.cursor_required),
         "manualRequiredCount": len(empalme.manual_required),
         "backendRequiredCount": len(empalme.backend_required),
+        "lovableBeforeRev": lovable_before_rev,
+        "lovableAfterRev": lovable_after_rev,
+        "antiRegressionEnabled": bool(anti_regression),
         "layerManifest": enriched,
         "applied": [
             {**a, "layers": enriched_map.get(a.get("lovablePath", ""), {}).get("layers", [])}

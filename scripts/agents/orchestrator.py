@@ -38,6 +38,7 @@ PHASE_AGENTS: dict[str, list[str]] = {
     ],
     "adapt": [
         "python-empalme",
+        "anti-regression-guard",
         "dependency-guard",
         "backend-contract-check",
         "release-guard",
@@ -56,6 +57,7 @@ AGENT_SCRIPTS: dict[str, str] = {
     "rules-refinement": "scripts/agents/run-rules-refinement-agent.py",
     "python-empalme": "scripts/lovable-sync/empalme-orchestrator.py",
     "empalme": "scripts/lovable-sync/empalme-orchestrator.py",
+    "anti-regression-guard": "scripts/agents/run-anti-regression-guard-agent.py",
     "dependency-guard": "scripts/agents/run-dependency-guard-agent.py",
     "backend-contract-check": "scripts/agents/run-backend-contract-check-agent.py",
     "release-guard": "scripts/agents/run-release-guard-agent.py",
@@ -69,7 +71,7 @@ AGENT_SCRIPTS: dict[str, str] = {
 BLOCKING_AGENTS = {
     "diff-intelligence", "rules-validation", "port-map-resolver",
     "idempotency-guard", "conflict-resolver", "sync-readiness-gate",
-    "python-empalme", "empalme", "dependency-guard", "backend-contract-check",
+    "python-empalme", "empalme", "anti-regression-guard", "dependency-guard", "backend-contract-check",
     "release-guard", "quality-gate",
 }
 
@@ -130,6 +132,14 @@ def run_agent(agent_id: str, args: argparse.Namespace) -> dict[str, Any]:
                     "--change-manifest", str(manifest), "--run-id", args.run_id])
     elif agent_id == "rules-refinement":
         cmd.append(args.lovable_dir)
+    elif agent_id == "anti-regression-guard":
+        cmd.extend([
+            "--lovable-dir", args.lovable_dir,
+            "--web-dir", args.web_dir,
+            "--cicd-dir", args.cicd_dir,
+            "--run-id", args.run_id,
+            "--python-result", str(Path(args.cicd_dir) / f"empalme-python-result-{args.run_id}.json"),
+        ])
     elif agent_id in ("dependency-guard", "backend-contract-check", "release-guard", "visual-regression"):
         cmd.extend(common_manifest)
     elif agent_id == "quality-gate":

@@ -112,7 +112,14 @@
       "maxCursorFilesPerRun": 5,
       "maxCursorRetries": 0,
       "requireCursorApproval": false,
-      "note": "DSF v1.1 — Python empalme diff-only. idempotency-guard + conflict-resolver + release-guard. Sin gap-loops."
+      "antiRegression": {
+        "requireBridgeMarkersPreserved": true,
+        "maxWebLineDeltaMultiplier": 3,
+        "maxAbsoluteWebLineDelta": 30,
+        "blockOnUnappliedDelta": true,
+        "note": "Bloquea empalme full-replace; delta-only sobre WEB existente. Escala a Cursor si hay regresión."
+      },
+      "note": "DSF v1.1 — Python empalme diff-only + delta-only anti-regresión. Sin gap-loops."
     },
     "forceAgentOnChanges": true,
     "forceAgentBelowSimilarity": true,

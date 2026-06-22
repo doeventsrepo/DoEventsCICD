@@ -150,6 +150,21 @@ def main() -> int:
     if rc != 0:
         return rc
 
+    anti_reg_script = CICD_ROOT / "scripts" / "agents" / "run-anti-regression-guard-agent.py"
+    if anti_reg_script.is_file() and not args.dry_run:
+        print("Ejecutando anti-regression-guard post-empalme Python...")
+        rc_ar = run([
+            sys.executable, str(anti_reg_script),
+            "--lovable-dir", args.lovable_dir,
+            "--web-dir", args.web_dir,
+            "--cicd-dir", str(cicd),
+            "--run-id", args.run_id,
+            "--python-result", str(python_result),
+        ])
+        if rc_ar != 0:
+            print("BLOQUEADO: anti-regression-guard — empalme con regresión detectada", file=sys.stderr)
+            return rc_ar
+
     py_data = json.loads(python_result.read_text(encoding="utf-8"))
     cursor_used = False
 

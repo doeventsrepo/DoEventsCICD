@@ -143,7 +143,11 @@ def classify_tier(
             pass
 
     if force_diff_apply and lovable_path in (force_paths or set()):
-        return "python", "archivo_modificado_en_lovable_diff"
+        if web_src and BRIDGE_MARKERS.search(web_src):
+            return "python", "delta_only_archivo_empalado_con_bridge"
+        if web_src:
+            return "python", "delta_only_archivo_modificado_en_diff"
+        return "python", "archivo_nuevo_en_diff"
 
     if BACKEND_HINTS.search(lovable_src) and similarity < 40:
         return "backend", "integracion_backend_requerida"
@@ -258,6 +262,9 @@ def run_empalme(
     port_map_path: Path,
     targets: list[EmpalmeItem],
     dry_run: bool = False,
+    lovable_before_rev: str | None = None,
+    lovable_after_rev: str | None = None,
+    anti_regression: dict | None = None,
 ) -> EmpalmeResult:
     tokens = load_design_tokens(lovable_root)
     result = EmpalmeResult()
@@ -289,19 +296,71 @@ def run_empalme(
             result.skipped.append({**base, "tier": "skipped", "reason": "missing_lovable"})
             continue
 
-        transformed = transform_lovable_source(
-            lovable_path.read_text(encoding="utf-8", errors="replace"),
-            tokens=tokens,
-            lovable_root=lovable_root,
-        )
-        web_original = web_path.read_text(encoding="utf-8", errors="replace") if web_path.is_file() else ""
-        if web_original:
-            try:
-                from quality_policy import merge_preserve_bridge
+        from empalme_delta import apply_lovable_delta, check_regression, git_file_at
 
-                transformed = merge_preserve_bridge(transformed, web_original)
-            except ImportError:
-                pass
+        lovable_new_raw = (
+            git_file_at(lovable_root, lovable_after_rev, item.lovable_path)
+            if lovable_after_rev
+            else None
+        )
+        if not lovable_new_raw:
+            lovable_new_raw = lovable_path.read_text(encoding="utf-8", errors="replace")
+        web_original = web_path.read_text(encoding="utf-8", errors="replace") if web_path.is_file() else ""
+        apply_mode = "full"
+        delta_detail = ""
+
+        if web_original:
+            apply_mode = "delta"
+            lovable_old_raw = (
+                git_file_at(lovable_root, lovable_before_rev, item.lovable_path)
+                if lovable_before_rev
+                else None
+            )
+            if not lovable_old_raw:
+                result.cursor_required.append({
+                    **base,
+                    "tier": "cursor",
+                    "reason": "sin_revision_lovable_anterior_para_delta",
+                })
+                continue
+
+            def _transform_fragment(text: str) -> str:
+                return transform_lovable_source(text, tokens=tokens, lovable_root=lovable_root)
+
+            delta = apply_lovable_delta(
+                web_original=web_original,
+                lovable_old=lovable_old_raw,
+                lovable_new=lovable_new_raw,
+                transform_fn=_transform_fragment,
+            )
+            if delta.missed or delta.ambiguous:
+                issues = delta.missed + delta.ambiguous
+                result.cursor_required.append({
+                    **base,
+                    "tier": "cursor",
+                    "reason": f"delta_incompleto ({'; '.join(issues[:3])})",
+                })
+                continue
+
+            transformed = delta.web_text
+            delta_detail = f"delta_ops={delta.applied_ops}"
+
+            ok, violations = check_regression(
+                web_original, transformed, lovable_old_raw, lovable_new_raw, anti_regression or {}
+            )
+            if not ok:
+                result.cursor_required.append({
+                    **base,
+                    "tier": "cursor",
+                    "reason": f"anti_regression ({'; '.join(violations[:3])})",
+                })
+                continue
+        else:
+            transformed = transform_lovable_source(
+                lovable_new_raw,
+                tokens=tokens,
+                lovable_root=lovable_root,
+            )
 
         if lovable_root is not None:
             try:
@@ -316,7 +375,14 @@ def run_empalme(
 
         hardcoded = hardcoded_color_violations(transformed)
         if dry_run:
-            result.applied.append({**base, "tier": "python", "dryRun": True, "hardcodedRemaining": len(hardcoded)})
+            result.applied.append({
+                **base,
+                "tier": "python",
+                "dryRun": True,
+                "applyMode": apply_mode,
+                "deltaDetail": delta_detail,
+                "hardcodedRemaining": len(hardcoded),
+            })
             continue
 
         web_path.parent.mkdir(parents=True, exist_ok=True)
@@ -324,6 +390,8 @@ def run_empalme(
         result.applied.append({
             **base,
             "tier": "python",
+            "applyMode": apply_mode,
+            "deltaDetail": delta_detail,
             "bytes": len(transformed),
             "hardcodedRemaining": len(hardcoded),
         })

@@ -47,13 +47,14 @@ def resolve_before(cwd: Path, before: str) -> str:
 def last_synced_lovable_sha(web: Path) -> str | None:
     branch = os.environ.get("CICD_WEB_BRANCH", "feature/cicd/dev-automation")
     try:
-        out = git(["log", "-1", "--grep=lovable(sync)", "--format=%s", branch], web)
+        out = git(["log", "-30", "--format=%s", branch], web)
     except subprocess.CalledProcessError:
         return None
-    if not out:
-        return None
-    match = SYNC_SHA_RE.search(out)
-    return match.group(1) if match else None
+    for line in out.splitlines():
+        match = SYNC_SHA_RE.search(line)
+        if match:
+            return match.group(1)
+    return None
 
 
 def classify(path: str) -> str:
@@ -107,13 +108,14 @@ def main() -> int:
         files.append({"status": status, "path": path, "kind": classify(path)})
 
     sha = git(["rev-parse", after], root)
+    before_sha = git(["rev-parse", before], root)
     rules_changed = [f for f in files if f["kind"] == "rules"]
     ui_changed = [f for f in files if f["kind"] == "ui"]
 
     manifest = {
         "lovableSha": sha,
-        "before": before,
-        "after": after,
+        "before": before_sha,
+        "after": sha,
         "mode": mode,
         "changedFiles": files,
         "hasUiChanges": len(ui_changed) > 0,

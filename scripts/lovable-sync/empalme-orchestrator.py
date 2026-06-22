@@ -302,6 +302,28 @@ def main() -> int:
     gh_output("cursor_escalation", str(cursor_used).lower())
 
     print(json.dumps(summary, indent=2))
+
+    manifest = {}
+    if args.change_manifest and Path(args.change_manifest).is_file():
+        manifest = json.loads(Path(args.change_manifest).read_text(encoding="utf-8"))
+    ui_changed = bool(manifest.get("hasUiChanges")) or any(
+        f.get("kind") == "ui" for f in manifest.get("changedFiles", [])
+    )
+    applied = int(py_data.get("appliedCount", 0))
+    if (
+        not args.dry_run
+        and ui_changed
+        and applied == 0
+        and not cursor_used
+        and int(py_data.get("cursorRequiredCount", 0)) > 0
+    ):
+        print(
+            "ERROR: hay cambios UI en Lovable pero el empalme no aplicó ninguno "
+            f"(cursorRequired={py_data.get('cursorRequiredCount')})",
+            file=sys.stderr,
+        )
+        return 1
+
     return 0
 
 

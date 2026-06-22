@@ -105,6 +105,23 @@ def _find_unique_block(web: str, old_block: str) -> tuple[int, int] | None:
     return None
 
 
+def _try_tailwind_token_swap(web: str, old_line: str, new_line: str) -> str | None:
+    """Si el diff Lovable solo cambia tokens de utilidad Tailwind, aplicar en WEB."""
+    token_re = re.compile(r"(?:bg|text|border|ring|from|to|via)-(?:\[[^\]]+\]|[^\s`\"'{}]+)")
+    old_tokens = set(token_re.findall(old_line))
+    new_tokens = set(token_re.findall(new_line))
+    removed = old_tokens - new_tokens
+    added = new_tokens - old_tokens
+    if len(removed) != 1 or len(added) != 1:
+        return None
+    old_tok, new_tok = removed.pop(), added.pop()
+    if old_tok in new_line and old_tok not in removed:
+        return None
+    if web.count(old_tok) == 1:
+        return web.replace(old_tok, new_tok, 1)
+    return None
+
+
 def _extract_ops(old: str, new: str) -> list[dict]:
     old_lines = old.splitlines()
     new_lines = new.splitlines()
@@ -153,6 +170,12 @@ def apply_lovable_delta(
             if span is None:
                 if _change_already_in_web(web, old_block, new_block):
                     continue
+                if len(op["old"]) == 1 and len(op["new"]) == 1:
+                    swapped = _try_tailwind_token_swap(web, op["old"][0], op["new"][0])
+                    if swapped is not None:
+                        web = swapped
+                        result.applied_ops += 1
+                        continue
                 if web.count(old_block) > 1:
                     result.ambiguous.append(f"replace_ambiguo:{old_block[:60]}")
                 else:

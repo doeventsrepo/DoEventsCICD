@@ -300,7 +300,6 @@ jobs:
     if: |
       needs.prepare.outputs.requires_agent == 'true' &&
       (inputs.run_agent != 'false' && github.event.inputs.run_agent != 'false' && github.event.client_payload.run_agent != 'false')
-    continue-on-error: true
     runs-on: ubuntu-latest
     outputs:
       agent_branch: ${{ needs.prepare.outputs.web_branch }}
@@ -315,6 +314,7 @@ jobs:
           ref: ${{ needs.prepare.outputs.lovable_sha }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: lovable
+          fetch-depth: 0
       - uses: actions/checkout@v4
         with:
           repository: ${{ env.WEB_REPO }}
@@ -507,7 +507,7 @@ jobs:
       needs.prepare.result == 'success' &&
       needs.custom-gates.result == 'success' &&
       (needs.gap-loop.result == 'success' || needs.gap-loop.result == 'failure' || needs.gap-loop.result == 'skipped') &&
-      (needs.adapt.result == 'success' || needs.adapt.result == 'failure' || needs.adapt.result == 'skipped') &&
+      (needs.adapt.result == 'success' || needs.adapt.result == 'skipped') &&
       (inputs.deploy_dev_after || github.event.inputs.deploy_dev_after || github.event.client_payload.deploy_dev_after || 'true') != 'false'
     uses: ./.github/workflows/deploy-web-dev.yml
     with:

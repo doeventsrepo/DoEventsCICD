@@ -38,7 +38,11 @@ def main() -> int:
     manifest = load_manifest(Path(args.change_manifest))
     policy = load_yaml(lovable / "reglasCalidad" / "backend-contract-policy.yml")
     contracts = load_backend_endpoints(lovable)
-    contract_paths = {c.get("path", "") for c in contracts if c.get("path")}
+    contract_by_uri = {
+        c.get("uri", "").split("?")[0].rstrip("/"): c
+        for c in contracts if c.get("uri")
+    }
+    contract_by_path = {c.get("path", ""): c for c in contracts if c.get("path")}
 
     ui_paths = [
         norm_path(f.get("path", ""))
@@ -58,12 +62,17 @@ def main() -> int:
             continue
         endpoints = extract_endpoints(text)
         for ep in endpoints:
-            implemented = ep in contract_paths or any(c.get("path") == ep and c.get("implementedInDoEventsBack") for c in contracts)
+            ep_norm = ep.split("?")[0].rstrip("/")
+            match = contract_by_uri.get(ep_norm) or contract_by_path.get(ep_norm)
+            implemented = bool(
+                match and match.get("implementedInDoEventsBack", False)
+            ) or ep_norm in contract_by_path or ep_norm in contract_by_uri
             item = {
                 "lovablePath": rel,
                 "endpoint": ep,
                 "implementedInDoEventsBack": implemented,
-                "authRequired": next((c.get("authRequired") for c in contracts if c.get("path") == ep), None),
+                "authRequired": (match or {}).get("authRequired"),
+                "contractUri": (match or {}).get("uri"),
             }
             if not implemented:
                 item["riskLevel"] = "blocked"

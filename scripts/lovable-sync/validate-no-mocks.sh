@@ -29,6 +29,26 @@ scan_dir() {
 }
 
 fail=0
+
+# Gate G3b — fuentes TS/TSX deben ser UTF-8 (evita corrupción UTF-16 desde Windows)
+LOVABLE="${SHELL_SRC}/lovable"
+if [ -d "$LOVABLE" ]; then
+  utf16_hits=""
+  while IFS= read -r -d '' f; do
+    enc=$(file -b --mime-encoding "$f" 2>/dev/null || echo unknown)
+    if [ "$enc" = "utf-16le" ] || [ "$enc" = "utf-16be" ]; then
+      utf16_hits="${utf16_hits}${f} (${enc})"$'\n'
+    fi
+  done < <(find "$LOVABLE" \( -name '*.ts' -o -name '*.tsx' \) -print0)
+  if [ -n "$utf16_hits" ]; then
+    echo "ERROR: archivos con encoding UTF-16 (deben ser UTF-8):" >&2
+    echo "$utf16_hits" >&2
+    fail=1
+  else
+    echo "OK: lovable/ sin UTF-16"
+  fi
+fi
+
 scan_dir "$SHELL_SRC" "shell/src (excepto lovable/)" "lovable" || fail=1
 scan_dir "${SHELL_SRC}/lovable-bridge" "lovable-bridge/" "" || fail=1
 scan_dir "$SHARED_SRC/api" "shared/api/" "" || fail=1

@@ -508,7 +508,7 @@ jobs:
       needs.custom-gates.result == 'success' &&
       (needs.gap-loop.result == 'success' || needs.gap-loop.result == 'failure' || needs.gap-loop.result == 'skipped') &&
       (needs.adapt.result == 'success' || needs.adapt.result == 'failure' || needs.adapt.result == 'skipped') &&
-      env.DSF_DEPLOY_DEV != 'false'
+      (inputs.deploy_dev_after || github.event.inputs.deploy_dev_after || github.event.client_payload.deploy_dev_after || 'true') != 'false'
     uses: ./.github/workflows/deploy-web-dev.yml
     with:
       web_ref: ${{ needs.gap-loop.outputs.web_ref || (needs.adapt.result == 'success' && needs.adapt.outputs.agent_branch) || needs.prepare.outputs.web_branch }}

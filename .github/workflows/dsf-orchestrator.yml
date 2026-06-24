@@ -81,6 +81,13 @@ jobs:
 
       - run: pip install -r cicd/requirements.txt
 
+      - name: Bootstrap DSF index (igual que prepare)
+        run: |
+          python3 cicd/scripts/lovable-sync/bootstrap-dsf-index.py \
+            --lovable-dir lovable --web-dir DoEventsWEB
+          python3 cicd/scripts/lovable-sync/complete-dsf-lovable.py \
+            --lovable-dir lovable --web-dir DoEventsWEB --skip-bootstrap
+
       - name: Ejecutar orquestador multi-agente
         env:
           CICD_DIR: ${{ github.workspace }}/cicd

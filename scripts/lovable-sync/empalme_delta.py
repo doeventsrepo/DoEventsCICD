@@ -31,6 +31,8 @@ def git_file_at(root: Path, rev: str, rel_path: str) -> str | None:
             ["git", "show", f"{rev}:{rel_path.replace(chr(92), '/')}"],
             cwd=root,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             stderr=subprocess.DEVNULL,
         )
     except (subprocess.CalledProcessError, FileNotFoundError):

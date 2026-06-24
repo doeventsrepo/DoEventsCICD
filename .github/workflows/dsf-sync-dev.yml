@@ -74,6 +74,7 @@ concurrency:
 
 env:
   CICD_DIR: ${{ github.workspace }}/cicd
+  PYTHONPATH: ${{ github.workspace }}/cicd
   DSF_TARGET_SIM: '98'
   DSF_DEPLOY_DEV: ${{ inputs.deploy_dev_after || github.event.inputs.deploy_dev_after || github.event.client_payload.deploy_dev_after || 'true' }}
   DSF_APP_ID: ${{ github.event.client_payload.app_id || inputs.app_id || github.event.inputs.app_id || 'doevents' }}

@@ -6,6 +6,11 @@ import argparse
 import sys
 from pathlib import Path
 
+# Permite `python3 cicd/dsf/resolve_app_github.py` sin PYTHONPATH manual
+_CICD_ROOT = Path(__file__).resolve().parent.parent
+if str(_CICD_ROOT) not in sys.path:
+    sys.path.insert(0, str(_CICD_ROOT))
+
 from dsf.app_resolver import application_env, resolve_application
 
 

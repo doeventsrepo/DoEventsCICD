@@ -370,6 +370,13 @@ jobs:
         with: { node-version: '20' }
       - run: pip install -r cicd/requirements.txt
 
+      - name: Bootstrap DSF index (igual que prepare)
+        run: |
+          python3 cicd/scripts/lovable-sync/bootstrap-dsf-index.py \
+            --lovable-dir lovable --web-dir DoEventsWEB
+          python3 cicd/scripts/lovable-sync/complete-dsf-lovable.py \
+            --lovable-dir lovable --web-dir DoEventsWEB --skip-bootstrap
+
       - name: Manifiesto de cambios (desde prepare)
         uses: actions/download-artifact@v4
         with:

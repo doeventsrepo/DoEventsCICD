@@ -305,7 +305,8 @@ def run_empalme(
         )
         if not lovable_new_raw:
             lovable_new_raw = lovable_path.read_text(encoding="utf-8", errors="replace")
-        web_original = web_path.read_text(encoding="utf-8", errors="replace") if web_path.is_file() else ""
+        web_existed_before = web_path.is_file()
+        web_original = web_path.read_text(encoding="utf-8", errors="replace") if web_existed_before else ""
         apply_mode = "full"
         delta_detail = ""
 
@@ -380,6 +381,7 @@ def run_empalme(
                 "tier": "python",
                 "dryRun": True,
                 "applyMode": apply_mode,
+                "webExistedBeforeApply": web_existed_before,
                 "deltaDetail": delta_detail,
                 "hardcodedRemaining": len(hardcoded),
             })
@@ -391,6 +393,7 @@ def run_empalme(
             **base,
             "tier": "python",
             "applyMode": apply_mode,
+            "webExistedBeforeApply": web_existed_before,
             "deltaDetail": delta_detail,
             "bytes": len(transformed),
             "hardcodedRemaining": len(hardcoded),

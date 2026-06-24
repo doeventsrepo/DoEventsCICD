@@ -56,10 +56,20 @@ def main() -> int:
     full_applied = [a for a in applied if a.get("applyMode") == "full"]
 
     violations: list[str] = []
+    new_file_reasons = (
+        "archivo_nuevo",
+        "nuevo_archivo",
+        "implementacion_determinista_nuevo",
+    )
     if full_applied:
         for item in full_applied:
             wp = item.get("webPath", "")
-            if wp and (Path(args.web_dir) / wp).is_file():
+            reason = item.get("reason", "")
+            existed = item.get("webExistedBeforeApply")
+            if existed is None:
+                # Compat resultados previos: inferir por motivo de empalme
+                existed = not any(m in reason for m in new_file_reasons)
+            if existed and wp:
                 violations.append(f"full_replace_sobre_existente:{wp}")
 
     if regression_items:

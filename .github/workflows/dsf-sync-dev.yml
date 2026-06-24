@@ -360,7 +360,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/checkout@v4
         with:
-          repository: ${{ needs.resolve.outputs.web_repo }}
+          repository: ${{ needs.prepare.outputs.web_repo }}
           ref: ${{ needs.prepare.outputs.web_branch }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: DoEventsWEB
@@ -456,7 +456,7 @@ jobs:
           path: lovable
       - uses: actions/checkout@v4
         with:
-          repository: ${{ needs.resolve.outputs.web_repo }}
+          repository: ${{ needs.prepare.outputs.web_repo }}
           ref: ${{ needs.adapt.result == 'success' && needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: DoEventsWEB
@@ -508,7 +508,7 @@ jobs:
         with: { path: cicd }
       - uses: actions/checkout@v4
         with:
-          repository: ${{ needs.resolve.outputs.web_repo }}
+          repository: ${{ needs.prepare.outputs.web_repo }}
           ref: ${{ needs.adapt.result == 'success' && needs.adapt.outputs.agent_branch || needs.prepare.outputs.web_branch }}
           token: ${{ secrets.DOEVENTS_WEB_PAT }}
           path: DoEventsWEB

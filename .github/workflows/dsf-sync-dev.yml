@@ -322,7 +322,7 @@ jobs:
           git add ReglasAgente/ .lovable-port-map.json docs/changes/ 2>/dev/null || true
           git diff --cached --quiet || {
             git commit -m "chore(dsf): preparar empalme Lovable→DEV [run:${{ github.run_id }}]"
-            git push "https://x-access-token:${WEB_PAT}@github.com/${{ needs.prepare.outputs.web_repo }}.git" "${WEB_CICD_BRANCH}"
+            git push "https://x-access-token:${WEB_PAT}@github.com/${{ needs.resolve.outputs.web_repo }}.git" "${WEB_CICD_BRANCH}"
           }
 
   agents-pre-adapt:

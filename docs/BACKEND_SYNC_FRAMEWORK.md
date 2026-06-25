@@ -88,3 +88,13 @@ Reporte en `Reports/YYYY-MM-DD-backend-sync-{runId}.md`.
 ### Local
 
 La clave se carga automáticamente desde `simulation/local.env` (misma que usa `run-dsf-local.ps1`).
+
+### Validación local multiagente
+
+```powershell
+cd DoEventsCICD/simulation
+python run-multiagent-validation.py
+# o: .\run-multiagent-validation.ps1
+```
+
+Simula cambios en `CreateEventView`, `ProfileView` y valida orquestador DSF + BSF en dry-run.

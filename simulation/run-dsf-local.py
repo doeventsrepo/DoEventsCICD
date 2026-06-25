@@ -515,24 +515,11 @@ def main() -> int:
     # Re-medir tras empalme local
     phase_prepare(cfg, p)
     rc = max(rc, phase_agent_dry(p))
-    # Orquestador multi-agente (pre/post adapt, sin API)
+    # Validación pipeline multiagente DSF + BSF (dry-run, manifiesto simulado)
     rc = max(
         rc,
         run_cmd(
-            [
-                sys.executable,
-                str(p["cicd"] / "scripts" / "agents" / "orchestrator.py"),
-                "--dry-run",
-                "--phase",
-                "all",
-                "--skip-adapt",
-                "--lovable-dir",
-                str(p["lovable"]),
-                "--web-dir",
-                str(p["web"]),
-                "--design-comparison",
-                str(p["out"] / "design-comparison.json"),
-            ],
+            [sys.executable, str(SIM_ROOT / "run-multiagent-validation.py")],
             env={"DSF_LOCAL_RUN_ID": run_id(), "CICD_DIR": str(p["cicd"])},
         ),
     )

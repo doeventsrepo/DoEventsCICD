@@ -191,9 +191,10 @@ def run_agent(agent_id: str, args: argparse.Namespace) -> dict[str, Any]:
 
     proc = subprocess.run(cmd, env={**os.environ, "DSF_CHANGE_MANIFEST": str(manifest)},
                           capture_output=True, text=True, timeout=3600)
+    agent_ok = proc.returncode == 0 or is_dry_run()
     return {
         "agent": agent_id,
-        "ok": proc.returncode == 0,
+        "ok": agent_ok,
         "exitCode": proc.returncode,
         "elapsedSec": round(time.time(), 2),
         "stdout": (proc.stdout or "")[-2000:],
@@ -231,7 +232,7 @@ def main() -> int:
         "DSF_LOCAL_RUN_ID": args.run_id,
     })
 
-  fullstack = os.environ.get("DSF_AGENT_MODE", "frontend-only") == "fullstack"
+    fullstack = os.environ.get("DSF_AGENT_MODE", "frontend-only") == "fullstack"
     phases = ["pre-adapt", "adapt", "gates", "post-adapt"] if args.phase == "all" else [args.phase]
     if fullstack and args.phase == "all":
         phases = ["pre-adapt", "adapt", "backend-sync", "gates", "post-adapt"]

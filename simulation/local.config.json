@@ -27,6 +27,7 @@
   },
   "notes": {
     "agent": "allowCursorAgent=false — NUNCA usa Cursor API ni GitHub en local.",
+    "multiagentValidation": "simulation/run-multiagent-validation.py — valida DSF+BSF con manifiesto simulado",
     "deploy": "Build local en sandbox; deploy AWS solo con --deploy y credenciales AWS explícitas."
   }
 }

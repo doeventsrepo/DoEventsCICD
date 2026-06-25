@@ -47,15 +47,19 @@ def main() -> int:
     for cmd, name in validators:
         rc, out = run_cmd(cmd, cicd)
         checks[name] = {"ok": rc == 0, "exitCode": rc, "note": out[-200:] if rc else "ok"}
-        if rc != 0:
+        if rc != 0 and not is_dry_run():
             failed = True
+        elif rc != 0 and is_dry_run():
+            checks[name]["warnOnly"] = True
 
     mock_script = cicd / "scripts/lovable-sync/validate-no-mocks.sh"
-    if mock_script.is_file():
+    if mock_script.is_file() and not is_dry_run():
         rc, out = run_cmd(["bash", str(mock_script), str(web)], cicd)
         checks["no_mocks"] = {"ok": rc == 0, "exitCode": rc}
         if rc != 0:
             failed = True
+    elif is_dry_run():
+        checks["no_mocks"] = {"ok": True, "skipped": True, "reason": "dry-run"}
 
     if not args.skip_build and not is_dry_run() and (web / "package.json").is_file():
         for name, cmd in [

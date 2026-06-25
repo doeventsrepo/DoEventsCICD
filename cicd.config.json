@@ -218,6 +218,15 @@
       "path": "artifacts/{runId}/backend-sync/errors.jsonl",
       "healerMaxAttempts": 3
     },
+    "cursorApiKey": {
+      "secretName": "CURSOR_API_KEY",
+      "sharedWith": ["dsf-empalme", "dsf-gap-loop", "bsf-implement", "bsf-healer"],
+      "localEnvFiles": [
+        "simulation/local.env",
+        "ConfiguracionEntorno/.local/dsf-secrets.env"
+      ],
+      "note": "Misma clave que agent.cursorApi — no crear secret BSF separado"
+    },
     "note": "Portable — copiar registry + scripts para otras apps DSF"
   },
   "cloud": {

@@ -90,6 +90,13 @@ def invoke_cursor_agent(
     wait: bool = False,
     model: str = "composer-2.5",
 ) -> dict[str, Any]:
+    try:
+        from dsf_env import load_dsf_secrets
+    except ImportError:
+        load_dsf_secrets = None  # type: ignore
+    if load_dsf_secrets:
+        load_dsf_secrets(cicd_root())
+
     if is_dry_run() or not os.environ.get("CURSOR_API_KEY"):
         preview = {
             "dryRun": True,

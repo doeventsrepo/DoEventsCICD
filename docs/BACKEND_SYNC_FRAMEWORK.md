@@ -80,7 +80,11 @@ Reporte en `Reports/YYYY-MM-DD-backend-sync-{runId}.md`.
 
 | Variable | Uso |
 |----------|-----|
-| `CURSOR_API_KEY` | Agente implement/healer |
+| `CURSOR_API_KEY` | Agente implement/healer — **mismo secret** que DSF empalme (`secrets.CURSOR_API_KEY` en GitHub) |
 | `BACK_DIR` | Ruta DoEventsBack |
 | `BSF_WAIT_CURSOR` | `1` espera fin agente Cursor |
 | `DSF_AGENT_DRY_RUN` | `1` sin llamadas reales |
+
+### Local
+
+La clave se carga automáticamente desde `simulation/local.env` (misma que usa `run-dsf-local.ps1`).

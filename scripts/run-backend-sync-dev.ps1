@@ -11,14 +11,23 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$CicdDir = Split-Path $PSScriptRoot -Parent
+if (-not $CicdDir) { $CicdDir = Split-Path $PSScriptRoot -Parent }
 $AppRoot = Split-Path $CicdDir -Parent
 
-if (-not $PSBoundParameters.ContainsKey('CicdDir')) { $CicdDir = $CicdDir }
-if (-not $LovableDir) { $LovableDir = Join-Path (Split-Path $AppRoot -Parent) "discover-joyful-feed" }
-if (-not $WebDir) { $WebDir = Join-Path (Split-Path $AppRoot -Parent) "DoEventsWEB" }
-if (-not $BackDir) { $BackDir = Join-Path (Split-Path $AppRoot -Parent) "DoEventsBack" }
+if (-not $LovableDir) { $LovableDir = Join-Path $AppRoot "discover-joyful-feed" }
+if (-not $WebDir) { $WebDir = Join-Path $AppRoot "DoEventsWEB" }
+if (-not $BackDir) { $BackDir = Join-Path $AppRoot "DoEventsBack" }
 if (-not $RunId) { $RunId = "local-bsf-$(Get-Date -Format 'yyyyMMdd-HHmmss')" }
+
+. (Join-Path $CicdDir "scripts\load-dsf-secrets.ps1")
+$secret = Import-DsfSecrets -CicdRoot $CicdDir
+if ($secret.ok) {
+  Write-Host "CURSOR_API_KEY: cargada desde $($secret.source)" -ForegroundColor DarkGray
+} elseif (-not $DryRun -and -not $SkipImplement) {
+  Write-Host $secret.hint -ForegroundColor Yellow
+  Write-Host "Continuando sin implement/healer Cursor (dry-run parcial)..." -ForegroundColor Yellow
+  $DryRun = $true
+}
 
 $env:CICD_DIR = $CicdDir
 $env:LOVABLE_DIR = $LovableDir
@@ -26,6 +35,7 @@ $env:WEB_DIR = $WebDir
 $env:BACK_DIR = $BackDir
 $env:DSF_LOCAL_RUN_ID = $RunId
 $env:GITHUB_RUN_ID = $RunId
+$env:BSF_WAIT_CURSOR = "1"
 
 $manifest = Join-Path $LovableDir "lovable-change-manifest.json"
 if (-not (Test-Path $manifest)) {

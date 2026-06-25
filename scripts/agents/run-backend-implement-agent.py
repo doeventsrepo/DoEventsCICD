@@ -134,7 +134,7 @@ def main() -> int:
     cursor_result = invoke_cursor_agent(
         name=f"BSF-backend-implement-{run_id}",
         prompt_text=prompt,
-        repos=[{"owner": backend_repo.split("/")[0], "name": backend_repo.split("/")[1], "branch": branch}],
+        repos=[{"url": f"https://github.com/{backend_repo}", "startingRef": branch}],
         wait=os.environ.get("BSF_WAIT_CURSOR", "1") == "1",
         model=cfg.get("agent", {}).get("defaultModel", "composer-2.5"),
     )
@@ -154,7 +154,9 @@ def main() -> int:
         applied.append(entry)
 
     report = {
-        "ok": True,
+        "ok": bool(cursor_result.get("dryRun")) or (
+            not cursor_result.get("httpError") and bool(cursor_result.get("agentId"))
+        ),
         "dryRun": is_dry_run() or cursor_result.get("dryRun"),
         "cursor": cursor_result,
         "applied": applied,
@@ -175,7 +177,7 @@ def main() -> int:
         run_id=run_id,
     )
     print(json.dumps(report, indent=2, ensure_ascii=False))
-    return 0
+    return 0 if report["ok"] else 1
 
 
 if __name__ == "__main__":

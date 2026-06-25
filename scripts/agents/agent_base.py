@@ -82,6 +82,23 @@ def cursor_api(method: str, path: str, body: dict | None = None, api_base: str |
         return json.loads(raw) if raw else {}
 
 
+def normalize_cursor_repos(repos: list[dict[str, str]] | None) -> list[dict[str, str]]:
+    """Normaliza repos al formato Cursor API: {url, startingRef}."""
+    out: list[dict[str, str]] = []
+    for r in repos or []:
+        if r.get("url"):
+            out.append({"url": r["url"], "startingRef": r.get("startingRef") or r.get("branch", "main")})
+            continue
+        owner = r.get("owner", "")
+        name = r.get("name", "")
+        if owner and name:
+            out.append({
+                "url": f"https://github.com/{owner}/{name}",
+                "startingRef": r.get("branch") or r.get("startingRef", "main"),
+            })
+    return out
+
+
 def invoke_cursor_agent(
     *,
     name: str,
@@ -111,13 +128,19 @@ def invoke_cursor_agent(
     payload = {
         "prompt": {"text": prompt_text},
         "model": {"id": os.environ.get("CURSOR_AGENT_MODEL", model)},
-        "repos": repos or [],
+        "repos": normalize_cursor_repos(repos),
         "workOnCurrentBranch": True,
         "autoCreatePR": False,
         "skipReviewerRequest": True,
         "name": name,
     }
-    created = cursor_api("POST", "", payload)
+    try:
+        created = cursor_api("POST", "", payload)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors="replace")[:2000]
+        err = {"ok": False, "httpError": e.code, "body": body, "name": name}
+        write_report("cursor-agent-error.json", err)
+        return err
     agent = created.get("agent") or {}
     run = created.get("run") or {}
     agent_id = agent.get("id") or created.get("id")

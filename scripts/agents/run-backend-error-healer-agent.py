@@ -106,7 +106,7 @@ def main() -> int:
     cursor_result = invoke_cursor_agent(
         name=f"BSF-backend-healer-{run_id}",
         prompt_text=prompt,
-        repos=[{"owner": backend_repo.split("/")[0], "name": backend_repo.split("/")[1], "branch": branch}],
+        repos=[{"url": f"https://github.com/{backend_repo}", "startingRef": branch}],
         wait=os.environ.get("BSF_WAIT_CURSOR", "1") == "1",
     )
 

@@ -5,8 +5,8 @@ Orquestador DSF v1.1 — pipeline 17 pasos, python-first, sin gap-loops.
 0 diff-intelligence → 1 rules-validation → 2 port-map-resolver → 2.3 idempotency-guard
 → 2.7 conflict-resolver → 2.5 sync-readiness-gate
 → 3 rules-refinement → 4 python-empalme (+7 cursor) → 5 dependency-guard
-→ 6 backend-contract-check → 6.5 release-guard → 8 quality-gate → 9 visual-regression
-→ 10 premerge-review → 11 backend-analysis → 14 report-generator
+→ 6 backend-contract-check → 6.x BSF backend-sync → 6.5 release-guard → 8 quality-gate
+→ 9 visual-regression → 10 premerge-review → 11 backend-analysis → 14 report-generator
 (12 deploy-dev, 13 smoke — CI)
 """
 from __future__ import annotations
@@ -43,6 +43,9 @@ PHASE_AGENTS: dict[str, list[str]] = {
         "backend-contract-check",
         "release-guard",
     ],
+    "backend-sync": [
+        "backend-sync-orchestrator",
+    ],
     "gates": ["quality-gate", "visual-regression"],
     "post-adapt": ["premerge-review", "backend-analysis", "report-generator"],
 }
@@ -66,6 +69,7 @@ AGENT_SCRIPTS: dict[str, str] = {
     "premerge-review": "scripts/agents/run-premerge-review-agent.py",
     "backend-analysis": "scripts/agents/run-backend-analysis-agent.py",
     "report-generator": "scripts/agents/run-report-generator-agent.py",
+    "backend-sync-orchestrator": "scripts/agents/run-backend-sync-orchestrator.py",
 }
 
 BLOCKING_AGENTS = {
@@ -142,6 +146,20 @@ def run_agent(agent_id: str, args: argparse.Namespace) -> dict[str, Any]:
         ])
     elif agent_id in ("dependency-guard", "backend-contract-check", "release-guard", "visual-regression"):
         cmd.extend(common_manifest)
+    elif agent_id == "backend-sync-orchestrator":
+        back_dir = os.environ.get("BACK_DIR", str(Path(args.cicd_dir).parent / "DoEventsBack"))
+        cmd.extend([
+            "--lovable-dir", args.lovable_dir,
+            "--web-dir", args.web_dir,
+            "--back-dir", back_dir,
+            "--cicd-dir", args.cicd_dir,
+            "--change-manifest", str(manifest),
+            "--run-id", args.run_id,
+        ])
+        if is_dry_run():
+            cmd.append("--dry-run")
+        if os.environ.get("BSF_SKIP_DEPLOY") == "1":
+            cmd.append("--skip-deploy")
     elif agent_id == "quality-gate":
         cmd.extend(["--lovable-dir", args.lovable_dir, "--web-dir", args.web_dir,
                     "--cicd-dir", args.cicd_dir, "--run-id", args.run_id])
@@ -187,7 +205,7 @@ def run_agent(agent_id: str, args: argparse.Namespace) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="DSF Orchestrator v1.1")
     parser.add_argument("--phase", default="all",
-                        choices=["all", "pre-adapt", "adapt", "gates", "post-adapt"])
+                        choices=["all", "pre-adapt", "adapt", "backend-sync", "gates", "post-adapt"])
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--run-id", default=os.environ.get("GITHUB_RUN_ID", f"local-{int(time.time())}"))
     parser.add_argument("--lovable-dir", default=os.environ.get("LOVABLE_DIR", ""))
@@ -213,7 +231,10 @@ def main() -> int:
         "DSF_LOCAL_RUN_ID": args.run_id,
     })
 
+  fullstack = os.environ.get("DSF_AGENT_MODE", "frontend-only") == "fullstack"
     phases = ["pre-adapt", "adapt", "gates", "post-adapt"] if args.phase == "all" else [args.phase]
+    if fullstack and args.phase == "all":
+        phases = ["pre-adapt", "adapt", "backend-sync", "gates", "post-adapt"]
     if args.skip_adapt:
         phases = [p for p in phases if p not in ("adapt", "gates")]
 

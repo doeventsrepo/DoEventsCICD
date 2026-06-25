@@ -7,6 +7,7 @@
     "promptEmpalme": "Reglas/operativas/prompt-empalme-web.md",
     "promptGapEmpalme": "Reglas/operativas/prompt-gap-empalme.md",
     "promptFullstack": "Reglas/operativas/prompt-fullstack.md",
+    "promptBackendSync": "Reglas/operativas/prompt-backend-sync.md",
     "reglaComparacionDiseno": "Reglas/operativas/regla-comparacion-diseno.md"
   },
   "customRules": {

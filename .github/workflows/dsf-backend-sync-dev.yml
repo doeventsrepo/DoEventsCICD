@@ -1,0 +1,128 @@
+# BSF — Backend Sync DEV (post-empalme frontend)
+name: DSF Backend Sync DEV
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Run ID del pipeline DSF padre
+        required: true
+      lovable_ref:
+        default: main
+      web_branch:
+        default: feature/cicd/dev-automation
+      back_branch:
+        default: feature/cicd/dev-automation
+      skip_deploy:
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+      dry_run:
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+  workflow_call:
+    inputs:
+      run_id:
+        type: string
+        required: true
+      lovable_ref:
+        type: string
+        default: main
+      web_branch:
+        type: string
+        default: feature/cicd/dev-automation
+      back_branch:
+        type: string
+        default: feature/cicd/dev-automation
+      skip_deploy:
+        type: string
+        default: 'false'
+      dry_run:
+        type: string
+        default: 'false'
+
+permissions:
+  contents: read
+
+env:
+  CICD_DIR: ${{ github.workspace }}/cicd
+  PYTHONPATH: ${{ github.workspace }}/cicd
+
+jobs:
+  backend-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: cicd
+
+      - uses: actions/checkout@v4
+        with:
+          repository: doeventsrepo/discover-joyful-feed
+          ref: ${{ inputs.lovable_ref || 'main' }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: lovable
+
+      - uses: actions/checkout@v4
+        with:
+          repository: doeventsrepo/DoEventsWEB
+          ref: ${{ inputs.web_branch || 'feature/cicd/dev-automation' }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsWEB
+
+      - uses: actions/checkout@v4
+        with:
+          repository: doeventsrepo/DoEventsBack
+          ref: ${{ inputs.back_branch || 'feature/cicd/dev-automation' }}
+          token: ${{ secrets.DOEVENTS_WEB_PAT }}
+          path: DoEventsBack
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install -r cicd/requirements.txt
+
+      - name: BSF — Backend Sync Orchestrator
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          LOVABLE_DIR: ${{ github.workspace }}/lovable
+          WEB_DIR: ${{ github.workspace }}/DoEventsWEB
+          BACK_DIR: ${{ github.workspace }}/DoEventsBack
+          GITHUB_RUN_ID: ${{ inputs.run_id }}
+          BSF_WAIT_CURSOR: '1'
+        run: |
+          MANIFEST="lovable/lovable-change-manifest.json"
+          [ -f "$MANIFEST" ] || MANIFEST="cicd/lovable-change-manifest.json"
+          ARGS="--lovable-dir lovable --web-dir DoEventsWEB --back-dir DoEventsBack \
+            --cicd-dir cicd --change-manifest $MANIFEST --run-id ${{ inputs.run_id }}"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          if [ "${{ inputs.skip_deploy }}" = "true" ]; then ARGS="$ARGS --skip-deploy"; fi
+          python3 cicd/scripts/agents/run-backend-sync-orchestrator.py $ARGS
+
+      - name: Commit backend changes (si agente modificó)
+        if: inputs.dry_run != 'true'
+        env:
+          BACK_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
+        run: |
+          cd DoEventsBack
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${BACK_PAT}@github.com/doeventsrepo/DoEventsBack.git"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "Sin cambios backend tras BSF"
+          else
+            git commit -m "feat(bsf): sync backend run ${{ inputs.run_id }} [lovable-sync]"
+            git push origin HEAD:${{ inputs.back_branch || 'feature/cicd/dev-automation' }}
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bsf-sync-${{ inputs.run_id }}
+          path: |
+            cicd/artifacts/${{ inputs.run_id }}/backend-*
+            cicd/artifacts/${{ inputs.run_id }}/backend-sync/
+            cicd/Reports/*-backend-sync-${{ inputs.run_id }}.md

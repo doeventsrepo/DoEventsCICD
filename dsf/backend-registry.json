@@ -1,0 +1,115 @@
+{
+  "version": "1.0",
+  "framework": "BSF",
+  "description": "Registro de acoplamiento Frontend ↔ Backend — portable a cualquier app DSF",
+  "branch": "feature/cicd/dev-automation",
+  "apiBaseDev": "https://api-dev.doeventsapp.com",
+  "regions": { "dev": "sa-east-1", "qa": "us-east-2" },
+  "domains": {
+    "auth": {
+      "lambdaDir": "aws-lambda-login",
+      "apiPrefix": "login",
+      "serverlessConfig": "serverless.dev.yml",
+      "webConsumers": ["packages/shared/src/api/authService.ts", "packages/mfe-auth"],
+      "lovableHints": ["src/components/auth/", "LoginView", "SignUpView", "ForgotPassword"]
+    },
+    "profile": {
+      "lambdaDir": "aws-lamda-manageusers",
+      "apiPrefix": "users",
+      "serverlessConfig": "serverless.dev.yml",
+      "webConsumers": [
+        "packages/shared/src/api/userService.ts",
+        "packages/shared/src/api/profileMediaService.ts",
+        "packages/shell/src/pages/ProfilePage.tsx"
+      ],
+      "lovableHints": ["ProfileView", "EditProfileView", "ProfileCommentsView", "getUser", "getUserStats"]
+    },
+    "events": {
+      "lambdaDir": "aws-lambda-manageevents",
+      "apiPrefix": "events",
+      "serverlessConfig": "serverless.dev.yml",
+      "webConsumers": [
+        "packages/shared/src/api/eventsService.ts",
+        "packages/shell/src/pages/CreateEventPage.tsx",
+        "packages/shell/src/pages/EventDetailPage.tsx"
+      ],
+      "lovableHints": ["EventWizard", "createEvent", "publishEvent", "EventDetail"]
+    },
+    "tickets": {
+      "lambdaDir": "aws-lambda-orders-manageTickets",
+      "apiPrefix": "orders",
+      "serverlessConfig": "serverless.dev.yml",
+      "webConsumers": ["packages/shared/src/api/ticketsService.ts", "packages/shell/src/pages/TicketCheckoutPage.tsx"],
+      "lovableHints": ["TicketPurchase", "checkout", "seatMap"]
+    },
+    "venues": {
+      "lambdaDir": "aws-lambda-venues",
+      "apiPrefix": "venues",
+      "serverlessConfig": "serverless.dev.yml",
+      "webConsumers": ["packages/shared/src/api/venueService.ts"],
+      "lovableHints": ["Venue", "PlaceDetail", "seating", "floors"]
+    },
+    "services": {
+      "lambdaDir": "aws-lambda-services",
+      "apiPrefix": "services",
+      "serverlessConfig": "serverless.dev.yml",
+      "webConsumers": ["packages/shared/src/api/servicesService.ts"],
+      "lovableHints": ["ServiceForm", "BookingSheet", "MyServices"]
+    },
+    "wall": {
+      "lambdaDir": "aws-lambda-wall-social-media",
+      "apiPrefix": "wall",
+      "serverlessConfig": "serverless.dev.yml",
+      "webConsumers": ["packages/shared/src/api/feedService.ts"],
+      "lovableHints": ["StoryViewer", "FeedHero", "followUser", "Publication"]
+    },
+    "chat": {
+      "lambdaDir": "aws-lambda-chats",
+      "apiPrefix": "chats",
+      "serverlessConfig": "serverless.dev.yml",
+      "webConsumers": ["packages/shared/src/api/chatService.ts"],
+      "lovableHints": ["ChatRoom", "MessagesList", "PrivateChat"]
+    },
+    "guests": {
+      "lambdaDir": "aws-lambda-guests",
+      "apiPrefix": "guests",
+      "serverlessConfig": "serverless.dev.yml",
+      "webConsumers": ["packages/shared/src/api/guestsService.ts"],
+      "lovableHints": ["EventInvitationModal", "GuestsHub", "AddGuest"]
+    },
+    "notifications": {
+      "lambdaDir": "aws-lambda-notifications",
+      "apiPrefix": "notifications",
+      "serverlessConfig": "serverless.dev.yml",
+      "webConsumers": ["packages/shared/src/api/notificationsService.ts"],
+      "lovableHints": ["Notifications", "trigger-notification"]
+    },
+    "payments": {
+      "lambdaDir": "aws-lambda-checkouts",
+      "apiPrefix": "checkouts",
+      "serverlessConfig": "serverless.dev.yml",
+      "webConsumers": ["packages/shared/src/api/checkoutService.ts"],
+      "lovableHints": ["PaymentGateway", "wompi", "checkout"]
+    },
+    "admin": {
+      "lambdaDir": "aws-lambda-backoffice",
+      "apiPrefix": "backoffice",
+      "serverlessConfig": "serverless.dev.yml",
+      "webConsumers": ["packages/shell/src/lovable/components/admin/"],
+      "lovableHints": ["AdminPanel", "AdminReports", "AdminRefunds"]
+    }
+  },
+  "changeSignals": {
+    "formField": ["register(", "useState<", "zod", "schema", "validation", "required", "maxLength", "minLength"],
+    "apiCall": ["fetch(", "axios.", "endpoints.", "apiBaseUrl", "/wall/", "/users/", "/events/"],
+    "routing": ["Route path=", "navigate(", "useNavigate", "createBrowserRouter"],
+    "businessLogic": ["if (", "throw new Error", "validate", "canRequest", "isAllowed"],
+    "newForm": ["onSubmit", "handleSubmit", "FormData", "DialogFooter"]
+  },
+  "deploy": {
+    "devScript": "infrastructure/dev-sa-east-1/deploy-dev-full-backend.ps1",
+    "selectiveCommand": "npx serverless deploy function",
+    "stage": "dev",
+    "region": "sa-east-1"
+  }
+}

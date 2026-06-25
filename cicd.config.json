@@ -89,7 +89,7 @@
       "2": { "id": "validate-yaml", "enabled": true, "deployTarget": null },
       "3": { "id": "agent-frontend", "enabled": true, "deployTarget": "dev" },
       "4": { "id": "backend-issues", "enabled": true, "deployTarget": null, "humanApprovalRequired": true },
-      "5": { "id": "fullstack", "enabled": false, "deployTarget": "dev", "humanApprovalRequired": true },
+      "5": { "id": "fullstack", "enabled": true, "deployTarget": "dev", "humanApprovalRequired": false, "note": "BSF v1.0 — sync backend tras empalme FE cuando agent_mode=fullstack" },
       "6": { "id": "codepipeline", "enabled": false, "deployTarget": "qa", "manualOnly": true }
     }
   },
@@ -189,6 +189,36 @@
       "bucket": "doevents-cicd-artifacts-dev",
       "region": "sa-east-1"
     }
+  },
+  "bsf": {
+    "version": "1.0",
+    "framework": "Backend Sync Framework",
+    "enabled": true,
+    "registryPath": "dsf/backend-registry.json",
+    "backendBranch": "feature/cicd/dev-automation",
+    "orchestrator": "scripts/agents/run-backend-sync-orchestrator.py",
+    "workflow": "dsf-backend-sync-dev.yml",
+    "triggerOnFullstack": true,
+    "autoDeployDev": true,
+    "couplingWeights": { "fields": 0.4, "contracts": 0.4, "domains": 0.2 },
+    "agents": {
+      "deltaDetector": "scripts/lovable-sync/detect-frontend-backend-delta.py",
+      "implement": "scripts/agents/run-backend-implement-agent.py",
+      "healer": "scripts/agents/run-backend-error-healer-agent.py",
+      "coupling": "scripts/lovable-sync/analyze-backend-coupling.py",
+      "report": "scripts/lovable-sync/generate-backend-sync-report.py"
+    },
+    "deploy": {
+      "script": "scripts/deploy/deploy-back-dev.ps1",
+      "stage": "dev",
+      "region": "sa-east-1",
+      "selective": true
+    },
+    "logging": {
+      "path": "artifacts/{runId}/backend-sync/errors.jsonl",
+      "healerMaxAttempts": 3
+    },
+    "note": "Portable — copiar registry + scripts para otras apps DSF"
   },
   "cloud": {
     "defaultProvider": "aws",

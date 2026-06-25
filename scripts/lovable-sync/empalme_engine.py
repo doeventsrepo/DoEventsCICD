@@ -22,6 +22,7 @@ BACKEND_HINTS = re.compile(
     re.I,
 )
 BRIDGE_MARKERS = re.compile(r"lovable-bridge|@doevents/shared|useApi|api-dev\.doeventsapp", re.I)
+LOVABLE_SUPABASE = re.compile(r"integrations/supabase|supabase\.", re.I)
 
 
 @dataclass
@@ -84,6 +85,17 @@ def transform_lovable_source(text: str, *, tokens: dict[str, Any] | None = None,
     text = re.sub(r"<Mock(\w+)", r"<\1Row", text)
     text = rewrite_imports(text)
     text = re.sub(r"import\s+\w+\s+from\s+['\"]@/assets/[^'\"]+['\"];\n?", "", text)
+    text = re.sub(
+        r"from\s+(['\"])@lovable/data/\1",
+        r"from \1@lovable/data/mockData\1",
+        text,
+    )
+    text = re.sub(
+        r"^import\s+.*from\s+['\"]@(?:lovable/)?integrations/supabase/[^'\"]+['\"];\s*\n?",
+        "",
+        text,
+        flags=re.M,
+    )
     text = apply_token_fixes(text, tokens or {})
     if lovable_root is not None:
         try:
@@ -94,6 +106,109 @@ def transform_lovable_source(text: str, *, tokens: dict[str, Any] | None = None,
         except ImportError:
             pass
     return text
+
+
+def preserve_web_exports(web_original: str, transformed: str) -> str:
+    """Conserva exports WEB (const/interface/type) que Lovable full-sync no incluye."""
+    blocks: list[str] = []
+    lines = web_original.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        m = re.match(r"export\s+(const|interface|type)\s+(\w+)", line.strip())
+        if not m:
+            i += 1
+            continue
+        kind, name = m.group(1), m.group(2)
+        if name in transformed:
+            i += 1
+            continue
+        block = [line]
+        i += 1
+        if kind == "interface" and "{" in line and "}" not in line.split("{", 1)[-1]:
+            while i < len(lines):
+                block.append(lines[i])
+                if "}" in lines[i]:
+                    i += 1
+                    break
+                i += 1
+        elif kind == "type" and "{" in line and ";" not in line:
+            while i < len(lines):
+                block.append(lines[i])
+                if ";" in lines[i]:
+                    i += 1
+                    break
+                i += 1
+        blocks.append("\n".join(block))
+    if not blocks:
+        return transformed
+    lines_out = transformed.splitlines()
+    insert_at = _leading_import_end(lines_out)
+    merged = lines_out[:insert_at] + blocks + lines_out[insert_at:]
+    return "\n".join(merged) + ("\n" if transformed.endswith("\n") else "")
+
+
+def _leading_import_end(lines: list[str]) -> int:
+    """Índice tras el bloque de imports al inicio del archivo."""
+    i = 0
+    n = len(lines)
+    while i < n:
+        st = lines[i].strip()
+        if not st or st.startswith("//"):
+            i += 1
+            continue
+        if not (st.startswith("import ") or (st.startswith("export ") and " from " in st)):
+            break
+        while i < n:
+            if lines[i].rstrip().endswith(";"):
+                i += 1
+                break
+            i += 1
+    return i
+
+
+def preserve_bridge_imports(web_original: str, transformed: str) -> str:
+    """Reinserta imports bridge del WEB original si el full-sync los eliminó."""
+    from empalme_delta import BRIDGE_IMPORT_MARKERS
+
+    missing: list[str] = []
+    for line in web_original.splitlines():
+        s = line.strip()
+        if not s.startswith("import "):
+            continue
+        if not any(m in line for m in BRIDGE_IMPORT_MARKERS):
+            continue
+        if line not in transformed:
+            missing.append(line)
+    if not missing:
+        return transformed
+
+    lines = transformed.splitlines()
+    insert_at = _leading_import_end(lines)
+    merged = lines[:insert_at] + missing + lines[insert_at:]
+    return "\n".join(merged) + ("\n" if transformed.endswith("\n") else "")
+
+
+def preserve_lovable_asset_imports(
+    lovable_src: str,
+    transformed: str,
+    *,
+    tokens: dict | None = None,
+    lovable_root: Path | None = None,
+) -> str:
+    """Reinserta imports @lovable/assets del Lovable transformado si full-sync los perdió."""
+    ref = transform_lovable_source(lovable_src, tokens=tokens, lovable_root=lovable_root)
+    asset_lines: list[str] = []
+    for line in ref.splitlines():
+        s = line.strip()
+        if s.startswith("import ") and "@lovable/assets/" in line and line not in transformed:
+            asset_lines.append(line)
+    if not asset_lines:
+        return transformed
+    lines = transformed.splitlines()
+    insert_at = _leading_import_end(lines)
+    merged = lines[:insert_at] + asset_lines + lines[insert_at:]
+    return "\n".join(merged) + ("\n" if transformed.endswith("\n") else "")
 
 
 def is_reexport_stub(text: str) -> bool:
@@ -265,6 +380,8 @@ def run_empalme(
     lovable_before_rev: str | None = None,
     lovable_after_rev: str | None = None,
     anti_regression: dict | None = None,
+    sync_mode: str = "delta",
+    python_max_sim: float = 85.0,
 ) -> EmpalmeResult:
     tokens = load_design_tokens(lovable_root)
     result = EmpalmeResult()
@@ -309,8 +426,10 @@ def run_empalme(
         web_original = web_path.read_text(encoding="utf-8", errors="replace") if web_existed_before else ""
         apply_mode = "full"
         delta_detail = ""
+        use_full = sync_mode == "full" or not web_original
+        lovable_old_raw: str | None = None
 
-        if web_original:
+        if web_original and not use_full:
             apply_mode = "delta"
             lovable_old_raw = (
                 git_file_at(lovable_root, lovable_before_rev, item.lovable_path)
@@ -318,50 +437,128 @@ def run_empalme(
                 else None
             )
             if not lovable_old_raw:
-                result.cursor_required.append({
-                    **base,
-                    "tier": "cursor",
-                    "reason": "sin_revision_lovable_anterior_para_delta",
-                })
-                continue
+                if sync_mode == "auto" and item.similarity < python_max_sim:
+                    use_full = True
+                else:
+                    result.cursor_required.append({
+                        **base,
+                        "tier": "cursor",
+                        "reason": "sin_revision_lovable_anterior_para_delta",
+                    })
+                    continue
 
-            def _transform_fragment(text: str) -> str:
-                return transform_lovable_source(text, tokens=tokens, lovable_root=lovable_root)
+            if not use_full:
+                def _transform_fragment(text: str) -> str:
+                    return transform_lovable_source(text, tokens=tokens, lovable_root=lovable_root)
 
-            delta = apply_lovable_delta(
-                web_original=web_original,
-                lovable_old=lovable_old_raw,
-                lovable_new=lovable_new_raw,
-                transform_fn=_transform_fragment,
-            )
-            if delta.missed or delta.ambiguous:
-                issues = delta.missed + delta.ambiguous
-                result.cursor_required.append({
-                    **base,
-                    "tier": "cursor",
-                    "reason": f"delta_incompleto ({'; '.join(issues[:3])})",
-                })
-                continue
+                delta = apply_lovable_delta(
+                    web_original=web_original,
+                    lovable_old=lovable_old_raw,
+                    lovable_new=lovable_new_raw,
+                    transform_fn=_transform_fragment,
+                )
+                if delta.missed or delta.ambiguous:
+                    if sync_mode == "auto" and item.similarity < python_max_sim:
+                        use_full = True
+                    else:
+                        issues = delta.missed + delta.ambiguous
+                        result.cursor_required.append({
+                            **base,
+                            "tier": "cursor",
+                            "reason": f"delta_incompleto ({'; '.join(issues[:3])})",
+                        })
+                        continue
 
-            transformed = delta.web_text
-            delta_detail = f"delta_ops={delta.applied_ops}"
+                if not use_full:
+                    transformed = delta.web_text
+                    delta_detail = f"delta_ops={delta.applied_ops}"
+                    if delta.applied_ops == 0 and sync_mode == "auto" and item.similarity < python_max_sim:
+                        use_full = True
+                    else:
+                        ok, violations = check_regression(
+                            web_original, transformed, lovable_old_raw, lovable_new_raw, anti_regression or {}
+                        )
+                        if not ok:
+                            if sync_mode == "auto" and item.similarity < python_max_sim:
+                                use_full = True
+                            else:
+                                result.cursor_required.append({
+                                    **base,
+                                    "tier": "cursor",
+                                    "reason": f"anti_regression ({'; '.join(violations[:3])})",
+                                })
+                                continue
 
-            ok, violations = check_regression(
-                web_original, transformed, lovable_old_raw, lovable_new_raw, anti_regression or {}
-            )
-            if not ok:
-                result.cursor_required.append({
-                    **base,
-                    "tier": "cursor",
-                    "reason": f"anti_regression ({'; '.join(violations[:3])})",
-                })
-                continue
-        else:
+        if use_full and web_original and LOVABLE_SUPABASE.search(lovable_new_raw) and BRIDGE_MARKERS.search(web_original):
+            result.cursor_required.append({
+                **base,
+                "tier": "cursor",
+                "reason": "lovable_supabase_vs_web_bridge",
+            })
+            continue
+
+        if (
+            use_full
+            and web_original
+            and "/contexts/" in item.lovable_path.replace("\\", "/")
+            and BRIDGE_MARKERS.search(web_original)
+        ):
+            result.cursor_required.append({
+                **base,
+                "tier": "cursor",
+                "reason": "contexto_bridge_requiere_merge_manual",
+            })
+            continue
+
+        if use_full or not web_original:
+            apply_mode = "full" if web_original else "full_new"
             transformed = transform_lovable_source(
                 lovable_new_raw,
                 tokens=tokens,
                 lovable_root=lovable_root,
             )
+            if web_original:
+                transformed = preserve_bridge_imports(web_original, transformed)
+                transformed = preserve_lovable_asset_imports(
+                    lovable_new_raw,
+                    transformed,
+                    tokens=tokens,
+                    lovable_root=lovable_root,
+                )
+                transformed = preserve_web_exports(web_original, transformed)
+            delta_detail = "full_sync" if web_original else ""
+            if web_original and transformed.strip() == web_original.strip():
+                result.skipped.append({**base, "tier": "skipped", "reason": "full_sync_sin_cambios"})
+                continue
+            reg_cfg = dict(anti_regression or {})
+            if sync_mode == "auto" and web_original:
+                reg_cfg = {
+                    **reg_cfg,
+                    "maxAbsoluteWebLineDelta": max(int(reg_cfg.get("maxAbsoluteWebLineDelta", 30)), 500),
+                    "maxWebLineDeltaMultiplier": max(float(reg_cfg.get("maxWebLineDeltaMultiplier", 3)), 50),
+                }
+            if web_original and lovable_old_raw:
+                ok, violations = check_regression(
+                    web_original, transformed, lovable_old_raw, lovable_new_raw, reg_cfg
+                )
+                if not ok:
+                    result.cursor_required.append({
+                        **base,
+                        "tier": "cursor",
+                        "reason": f"anti_regression_full ({'; '.join(violations[:3])})",
+                    })
+                    continue
+            elif web_original:
+                ok, violations = check_regression(
+                    web_original, transformed, lovable_new_raw, lovable_new_raw, reg_cfg
+                )
+                if not ok:
+                    result.cursor_required.append({
+                        **base,
+                        "tier": "cursor",
+                        "reason": f"anti_regression_full ({'; '.join(violations[:3])})",
+                    })
+                    continue
 
         if lovable_root is not None:
             try:

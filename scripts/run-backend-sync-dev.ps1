@@ -7,7 +7,8 @@ param(
   [string]$RunId = "",
   [switch]$DryRun,
   [switch]$SkipDeploy,
-  [switch]$SkipImplement
+  [switch]$SkipImplement,
+  [switch]$UseCi
 )
 
 $ErrorActionPreference = "Stop"
@@ -21,6 +22,21 @@ if (-not $RunId) { $RunId = "local-bsf-$(Get-Date -Format 'yyyyMMdd-HHmmss')" }
 
 . (Join-Path $CicdDir "scripts\load-dsf-secrets.ps1")
 $secret = Import-DsfSecrets -CicdRoot $CicdDir
+
+# Sin key local: usar GitHub Actions con secret CURSOR_API_KEY existente
+if ((-not $secret.ok) -and ($UseCi -or (-not $DryRun -and -not $SkipImplement))) {
+  if (-not $RunId) { $RunId = "local-bsf-$(Get-Date -Format 'yyyyMMdd-HHmmss')" }
+  Write-Host "Sin CURSOR_API_KEY local - ejecutando BSF en CI (secret GitHub existente)..." -ForegroundColor Cyan
+  gh workflow run dsf-backend-sync-dev.yml --repo doeventsrepo/DoEventsCICD `
+    -f "run_id=$RunId" `
+    -f "dry_run=$($DryRun.ToString().ToLower())" `
+    -f "skip_deploy=$($SkipDeploy.ToString().ToLower())"
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  Write-Host "Workflow iniciado. Ver: https://github.com/doeventsrepo/DoEventsCICD/actions/workflows/dsf-backend-sync-dev.yml" -ForegroundColor Green
+  Write-Host "RunId: $RunId"
+  exit 0
+}
+
 if ($secret.ok) {
   Write-Host "CURSOR_API_KEY: cargada desde $($secret.source)" -ForegroundColor DarkGray
 } elseif (-not $DryRun -and -not $SkipImplement) {

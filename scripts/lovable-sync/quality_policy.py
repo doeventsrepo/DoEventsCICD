@@ -48,6 +48,15 @@ def apply_forbidden_fixes(text: str, policy: dict[str, Any]) -> tuple[str, list[
             repl = item.get("replace", "")
             if not regex:
                 continue
+            if action == "strip" and "mockData" in str(regex):
+                lines_out: list[str] = []
+                for line in text.splitlines(keepends=True):
+                    if line.lstrip().startswith("import ") and re.search(regex, line):
+                        lines_out.append(line)
+                    else:
+                        lines_out.append(re.sub(regex, repl, line))
+                text = "".join(lines_out)
+                continue
             new_text, n = re.subn(regex, repl, text)
             if n:
                 fixes.append({"regex": regex, "replace": repl, "count": n})
@@ -116,11 +125,25 @@ def preserve_bridge_lines(web_text: str) -> list[str]:
     """Extrae imports críticos del WEB existente que Python debe preservar."""
     keep: list[str] = []
     markers = ("lovable-bridge", "@doevents/shared", "api-dev.doeventsapp")
-    for line in web_text.splitlines():
-        s = line.strip()
+    lines = web_text.splitlines()
+    i = 0
+    n = len(lines)
+    while i < n:
+        s = lines[i].strip()
         if s.startswith("import ") or s.startswith("export "):
-            if any(m in line for m in markers):
-                keep.append(line)
+            start = i
+            j = i
+            while j < n:
+                if lines[j].rstrip().endswith(";"):
+                    j += 1
+                    break
+                j += 1
+            block = "\n".join(lines[start:j])
+            if any(m in block for m in markers):
+                keep.append(block)
+            i = j
+        else:
+            i += 1
     return keep
 
 
@@ -130,11 +153,11 @@ def merge_preserve_bridge(lovable_transformed: str, web_original: str) -> str:
     if not bridge_lines:
         return lovable_transformed
     out_lines = lovable_transformed.splitlines()
-    existing = set(ln.strip() for ln in out_lines if ln.strip().startswith(("import ", "export ")))
+    existing_blocks = set(preserve_bridge_lines(lovable_transformed))
     prepend: list[str] = []
     for bl in bridge_lines:
-        if bl.strip() not in existing:
-            prepend.append(bl)
+        if bl not in existing_blocks and bl not in lovable_transformed:
+            prepend.extend(bl.splitlines())
     if not prepend:
         return lovable_transformed
     # Insertar tras primer bloque de imports

@@ -167,25 +167,50 @@ def _leading_import_end(lines: list[str]) -> int:
     return i
 
 
-def preserve_bridge_imports(web_original: str, transformed: str) -> str:
-    """Reinserta imports bridge del WEB original si el full-sync los eliminó."""
+def _extract_bridge_import_blocks(text: str) -> list[str]:
+    """Bloques import/export completos (incl. multilínea) con marcadores bridge."""
     from empalme_delta import BRIDGE_IMPORT_MARKERS
 
+    lines = text.splitlines()
+    blocks: list[str] = []
+    i = 0
+    n = len(lines)
+    while i < n:
+        s = lines[i].strip()
+        if s.startswith("import ") or s.startswith("export "):
+            start = i
+            j = i
+            while j < n:
+                if lines[j].rstrip().endswith(";"):
+                    j += 1
+                    break
+                j += 1
+            block = "\n".join(lines[start:j])
+            if any(m in block for m in BRIDGE_IMPORT_MARKERS):
+                blocks.append(block)
+            i = j
+        else:
+            i += 1
+    return blocks
+
+
+def preserve_bridge_imports(web_original: str, transformed: str) -> str:
+    """Reinserta imports bridge del WEB original si el full-sync los eliminó."""
     missing: list[str] = []
-    for line in web_original.splitlines():
-        s = line.strip()
-        if not s.startswith("import "):
-            continue
-        if not any(m in line for m in BRIDGE_IMPORT_MARKERS):
-            continue
-        if line not in transformed:
-            missing.append(line)
+    for block in _extract_bridge_import_blocks(web_original):
+        if block not in transformed and not any(
+            ln.strip() in transformed for ln in block.splitlines() if ln.strip()
+        ):
+            missing.append(block)
     if not missing:
         return transformed
 
     lines = transformed.splitlines()
     insert_at = _leading_import_end(lines)
-    merged = lines[:insert_at] + missing + lines[insert_at:]
+    flat_missing: list[str] = []
+    for block in missing:
+        flat_missing.extend(block.splitlines())
+    merged = lines[:insert_at] + flat_missing + lines[insert_at:]
     return "\n".join(merged) + ("\n" if transformed.endswith("\n") else "")
 
 

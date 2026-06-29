@@ -139,6 +139,24 @@ def main() -> int:
 
     sha = git(["rev-parse", after], root)
     before_sha = git(["rev-parse", before], root)
+
+    # Re-sync del mismo SHA (catch-up vacío): usar diff del commit puntual
+    if not any(f.get("kind") == "ui" for f in files) and rev_exists(root, f"{after}^"):
+        try:
+            single = git(["diff", "--name-status", f"{after}^", after], root)
+            for line in single.splitlines():
+                if not line.strip():
+                    continue
+                parts = line.split("\t")
+                if len(parts) < 2:
+                    continue
+                add_file(parts[0], parts[-1], source="commit-resync")
+            if any(f.get("source") == "commit-resync" for f in files):
+                mode = f"{mode}+commit-resync"
+                print(f"Fallback diff commit puntual: {after}^..{after}")
+        except subprocess.CalledProcessError:
+            pass
+
     rules_changed = [f for f in files if f["kind"] == "rules"]
     ui_changed = [f for f in files if f["kind"] == "ui"]
 

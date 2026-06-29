@@ -44,6 +44,11 @@ def main() -> int:
         existing = {f.get("path") for f in manifest.get("changedFiles") or []}
         injected = 0
         reempalme_prefixes = ("src/components/feed/", "src/index.css")
+        commit_ui_paths = {
+            str(f.get("path") or "").strip()
+            for f in manifest.get("changedFiles") or []
+            if f.get("kind") == "ui" and f.get("source") != "design-gap"
+        }
         for item in design.get("lowSimilarity") or []:
             lp = str(item.get("lovablePath") or "").strip()
             pct = float(item.get("similarityPercent") or 100)
@@ -52,6 +57,9 @@ def main() -> int:
             if pct >= 95:
                 continue
             if not any(lp.startswith(p) for p in reempalme_prefixes):
+                continue
+            # Solo re-empalmar drift en archivos del commit UI actual (no todo el feed)
+            if commit_ui_paths and lp not in commit_ui_paths:
                 continue
             manifest.setdefault("changedFiles", []).append({
                 "path": lp,

@@ -49,9 +49,20 @@ def main() -> int:
     cursor_items = data.get("cursorRequired") or []
     # delta_incompleto = Python no pudo aplicar el parche (p. ej. archivo ya adaptado en bridge).
     # Eso es escalación normal a Cursor, no una regresión — no bloquear antes del fallback.
+    applied_paths = {
+        str(a.get("lovablePath") or "").strip()
+        for a in applied
+        if a.get("lovablePath")
+    }
     regression_items = [
         c for c in cursor_items
         if "anti_regression" in c.get("reason", "")
+        and str(c.get("lovablePath") or "").strip() in applied_paths
+    ]
+    deferred_regressions = [
+        c for c in cursor_items
+        if "anti_regression" in c.get("reason", "")
+        and str(c.get("lovablePath") or "").strip() not in applied_paths
     ]
     incomplete_escalations = [
         c for c in cursor_items
@@ -104,6 +115,7 @@ def main() -> int:
         "deltaAppliedCount": len(delta_applied),
         "fullAppliedCount": len(full_applied),
         "regressionEscalations": len(regression_items),
+        "deferredRegressions": len(deferred_regressions),
         "cursorEscalations": len(incomplete_escalations),
         "violations": violations,
     }

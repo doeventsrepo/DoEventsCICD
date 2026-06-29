@@ -184,6 +184,7 @@
       "propertiesFile": "dsf.properties",
       "blockOnSimilarity": false,
       "adaptOnlyOnManifestChanges": true,
+      "adaptOnDesignGaps": true,
       "designComparisonInformational": true,
       "forceAgentBelowSimilarity": false,
       "note": "Control operativo en dsf.properties (overrides). Forward-only delta: empalmar solo diff Lovable, similitud informativa."

@@ -9,6 +9,7 @@ from dsf.config import dsf_settings, load_config
 DEFAULTS: dict[str, bool] = {
     "blockOnSimilarity": True,
     "adaptOnlyOnManifestChanges": False,
+    "adaptOnDesignGaps": True,
     "designComparisonInformational": False,
     "forceAgentBelowSimilarity": True,
 }
@@ -85,7 +86,14 @@ def resolve_requires_agent(
         policy = load_sync_policy()
 
     if policy.get("adaptOnlyOnManifestChanges"):
-        return manifest_has_sync_changes(manifest)
+        if manifest_has_sync_changes(manifest):
+            return True
+        if policy.get("adaptOnDesignGaps") and design:
+            if int(design.get("needsAdaptationCount") or 0) > 0:
+                return True
+            if design.get("missingInWeb"):
+                return True
+        return False
 
     sim = float((design or {}).get("overallSimilarityPercent", 100))
     force_below = bool(policy.get("forceAgentBelowSimilarity"))

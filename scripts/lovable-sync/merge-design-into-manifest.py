@@ -40,8 +40,37 @@ def main() -> int:
     manifest["designComparison"] = {k: design[k] for k in KEYS if k in design}
     manifest["syncPolicy"] = policy
 
+    if policy.get("adaptOnDesignGaps"):
+        existing = {f.get("path") for f in manifest.get("changedFiles") or []}
+        injected = 0
+        for item in design.get("lowSimilarity") or []:
+            lp = str(item.get("lovablePath") or "").strip()
+            if lp and lp not in existing:
+                manifest.setdefault("changedFiles", []).append({
+                    "path": lp,
+                    "kind": "ui",
+                    "status": "M",
+                    "source": "design-gap",
+                    "similarityPercent": item.get("similarityPercent"),
+                })
+                existing.add(lp)
+                injected += 1
+        for lp in design.get("missingInWeb") or []:
+            lp = str(lp).strip()
+            if lp and lp not in existing:
+                manifest.setdefault("changedFiles", []).append({
+                    "path": lp,
+                    "kind": "ui",
+                    "status": "A",
+                    "source": "design-gap",
+                })
+                existing.add(lp)
+                injected += 1
+        if injected:
+            manifest["hasUiChanges"] = True
+            manifest["designGapReempalme"] = injected
+
     if policy.get("designComparisonInformational"):
-        # requiresAgent solo desde diff git (analyze-lovable-diff), no similitud global
         manifest["requiresAgent"] = bool(
             manifest.get("hasUiChanges") or manifest.get("hasRulesChanges")
         )

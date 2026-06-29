@@ -24,7 +24,10 @@ SKIP_SUFFIXES = (
 BACKEND_LINE = re.compile(
     r"@doevents/shared|lovable-bridge|api-dev\.doeventsapp|"
     r"\b(searchUsers|fetchSocialFeed|reportPublication|getPreferences|fetchEventTypes|"
-    r"fetchFollowers|followUser|searchEvents|useToast|useSelector|RootState)\b|"
+    r"fetchFollowers|followUser|searchEvents|useToast|useSelector|RootState|"
+    r"resolveUserLocation|resolveManualUserLocation|loadGoogleMapsScript|"
+    r"getStoredUserLocation|mapItems|MapViewProps|MapItemData)\b|"
+    r"handleDeviceLocation|handlePlaceSearch|onSearchKeyDown|"
     r"await\s+fetch\b"
 )
 
@@ -68,7 +71,10 @@ def main() -> int:
     parser.add_argument("--comparison", required=True)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--out", default="empalme-delta-design.json")
+    parser.add_argument("--only", default="", help="CSV lovablePath a procesar (ignora skip parcial)")
     args = parser.parse_args()
+
+    only_set = {p.strip() for p in args.only.split(",") if p.strip()}
 
     lovable_root = Path(args.lovable_dir).resolve()
     web_root = Path(args.web_dir).resolve()
@@ -84,8 +90,10 @@ def main() -> int:
         lovable_rel = entry.get("lovablePath", "")
         if not lovable_rel:
             continue
+        if only_set and lovable_rel not in only_set:
+            continue
         skip = should_skip(lovable_rel)
-        if skip:
+        if skip and lovable_rel not in only_set:
             skipped.append({"lovablePath": lovable_rel, "reason": f"skip:{skip}"})
             continue
 

@@ -1,0 +1,94 @@
+{
+  "applied": [
+    {
+      "lovablePath": "src/components/feed/ChangeLocationSheet.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/ChangeLocationSheet.tsx",
+      "ops": 7,
+      "similarityPercent": 57.96
+    },
+    {
+      "lovablePath": "src/components/feed/GlobalSearchView.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/GlobalSearchView.tsx",
+      "ops": 1,
+      "similarityPercent": 84.13
+    },
+    {
+      "lovablePath": "src/components/feed/MapView.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/MapView.tsx",
+      "ops": 34,
+      "similarityPercent": 81.74
+    },
+    {
+      "lovablePath": "src/components/guests/EventInvitationModal.tsx",
+      "webPath": "packages/shell/src/lovable/components/guests/EventInvitationModal.tsx",
+      "ops": 28,
+      "similarityPercent": 68.15
+    }
+  ],
+  "skipped": [
+    {
+      "lovablePath": "src/components/access/AccessControlListView.tsx",
+      "reason": "sin_ops",
+      "missed": []
+    },
+    {
+      "lovablePath": "src/components/admin/AdminPanelView.tsx",
+      "reason": "skip:/components/admin/"
+    },
+    {
+      "lovablePath": "src/components/admin/AdminReportsPanel.tsx",
+      "reason": "skip:/components/admin/"
+    },
+    {
+      "lovablePath": "src/components/admin/AdminUsersPanel.tsx",
+      "reason": "skip:/components/admin/"
+    },
+    {
+      "lovablePath": "src/components/admin/EventSalesDetail.tsx",
+      "reason": "skip:/components/admin/"
+    },
+    {
+      "lovablePath": "src/components/admin/NewUsersPanel.tsx",
+      "reason": "skip:/components/admin/"
+    },
+    {
+      "lovablePath": "src/components/admin/PaymentsPanel.tsx",
+      "reason": "skip:/components/admin/"
+    },
+    {
+      "lovablePath": "src/components/admin/SupportSearchPanel.tsx",
+      "reason": "skip:/components/admin/"
+    },
+    {
+      "lovablePath": "src/components/feed/StoryViewer.tsx",
+      "reason": "regression",
+      "violations": [
+        "sin_cambio_en_web_pese_a_diff_lovable"
+      ]
+    },
+    {
+      "lovablePath": "src/contexts/KycContext.tsx",
+      "reason": "skip:/contexts/KycContext.tsx"
+    },
+    {
+      "lovablePath": "src/hooks/useGuests.ts",
+      "reason": "skip:/hooks/useGuests.ts"
+    },
+    {
+      "lovablePath": "src/pages/EventPublished.tsx",
+      "reason": "skip:/pages/"
+    },
+    {
+      "lovablePath": "src/pages/Index.tsx",
+      "reason": "skip:/pages/"
+    },
+    {
+      "lovablePath": "src/pages/NotFound.tsx",
+      "reason": "skip:/pages/"
+    },
+    {
+      "lovablePath": "src/pages/VenueDetail.tsx",
+      "reason": "skip:/pages/"
+    }
+  ]
+}

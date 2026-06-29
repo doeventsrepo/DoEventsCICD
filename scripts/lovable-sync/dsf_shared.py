@@ -19,6 +19,7 @@ ALL_LAYERS = (
 # Fallback ruleId cuando bootstrap aún no generó component-index.yml
 _PREFIX_RULE_ID: list[tuple[str, str]] = [
     ("src/components/events/", "eventos.crear.wizard"),
+    ("src/components/feed/", "publicaciones.feed-principal"),
     ("src/components/stats/", "eventos.estadisticas"),
     ("src/components/admin/", "admin.panel"),
     ("src/components/tickets/", "tickets.compra.flow"),

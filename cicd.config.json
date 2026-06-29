@@ -39,6 +39,26 @@
     "note": "Registro empresarial: un CICD, N apps Lovable. Cada repo Lovable dispara sync con app_id."
   },
   "description": "Design Sync Framework multi-app — Lovable → empalme → agentes → gates → DEV. QA/prod manual.",
+  "appStack": {
+    "validateBeforeAutomation": true,
+    "autoBootstrap": true,
+    "requirements": {
+      "design": { "dsfStructure": true },
+      "frontend": {
+        "packageJson": true,
+        "lovableDir": true,
+        "bridgeDir": true,
+        "portMap": true,
+        "reglasAgente": true
+      },
+      "backend": {
+        "optional": false,
+        "registryPath": "dsf/backend-registry.json",
+        "contractsPath": "contratosBackend/endpoints.yml"
+      }
+    },
+    "note": "Gate G-Stack — validar FE/BE antes de empalme; bootstrap genera UI/bridge/port-map desde Lovable si faltan"
+  },
   "dsfCore": {
     "framework": "DSF",
     "designRepo": "doeventsrepo/discover-joyful-feed",
@@ -158,7 +178,15 @@
       "note": "DSF v1.1 — Python empalme diff-only + delta-only anti-regresión. Sin gap-loops."
     },
     "forceAgentOnChanges": true,
-    "forceAgentBelowSimilarity": true,
+    "forceAgentBelowSimilarity": false,
+    "syncPolicy": {
+      "propertiesFile": "dsf.properties",
+      "blockOnSimilarity": false,
+      "adaptOnlyOnManifestChanges": true,
+      "designComparisonInformational": true,
+      "forceAgentBelowSimilarity": false,
+      "note": "Control operativo en dsf.properties (overrides). Forward-only delta: empalmar solo diff Lovable, similitud informativa."
+    },
     "blockingGates": true,
     "requireSmokeTests": true,
     "requirePortMapCoverage": true,

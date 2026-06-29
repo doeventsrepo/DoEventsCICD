@@ -278,18 +278,22 @@ jobs:
           python3 cicd/scripts/lovable-sync/compare-design-similarity.py \
             lovable DoEventsWEB DoEventsWEB/.lovable-port-map.json cicd/design-comparison.json
           python3 cicd/scripts/lovable-sync/merge-design-into-manifest.py \
-            cicd/lovable-change-manifest.json cicd/design-comparison.json lovable/lovable-change-manifest.json
+            cicd/lovable-change-manifest.json cicd/design-comparison.json lovable/lovable-change-manifest.json cicd
           SIM=$(python3 -c "import json; print(json.load(open('cicd/design-comparison.json'))['overallSimilarityPercent'])")
           echo "similarity_percent=$SIM" >> "$GITHUB_OUTPUT"
 
       - name: Determinar si agente es obligatorio
         id: force
         run: |
-          MANIFEST=cicd/lovable-change-manifest.json
-          SIM="${{ steps.design.outputs.similarity_percent }}"
-          REQUIRES=$(python3 -c "import json; m=json.load(open('$MANIFEST')); print(str(m.get('requiresAgent') or float('$SIM') < float('${{ env.DSF_TARGET_SIM }}')).lower())")
+          python3 cicd/scripts/lovable-sync/resolve-requires-agent.py \
+            --manifest cicd/lovable-change-manifest.json \
+            --design cicd/design-comparison.json \
+            --cicd-dir cicd \
+            --target-sim "${{ env.DSF_TARGET_SIM }}" | tee cicd/requires-agent.json
+          REQUIRES=$(python3 -c "import json; print(str(json.load(open('cicd/requires-agent.json'))['requiresAgent']).lower())")
           echo "requires_agent=$REQUIRES" >> "$GITHUB_OUTPUT"
-          echo "Agente obligatorio: $REQUIRES (similitud ${SIM}%)"
+          POLICY=$(python3 -c "import json; p=json.load(open('cicd/requires-agent.json'))['syncPolicy']; print('manifest-only' if p.get('adaptOnlyOnManifestChanges') else 'legacy')")
+          echo "Política sync: $POLICY | adapt=$REQUIRES | sim ${{ steps.design.outputs.similarity_percent }}% (informativa si dsf.properties)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Preparar artefactos agente
         env:
@@ -660,8 +664,7 @@ jobs:
             --lovable-sha "${{ needs.prepare.outputs.lovable_sha }}" \
             --agent-ran "$AGENT_RAN" --deploy-ran "$DEPLOY_RAN" \
             --smoke-ran "$SMOKE_RAN" --smoke-ok "$SMOKE_OK" \
-            --port-map-ok "$PORT_OK" --cicd-dir cicd --blocking true \
-            --min-similarity 98 | tee cicd/validation-result.json
+            --port-map-ok "$PORT_OK" --cicd-dir cicd --blocking true | tee cicd/validation-result.json
           python3 -c "import json,sys; sys.exit(0 if json.load(open('cicd/validation-result.json'))['ok'] else 1)"
 
       - name: Generar reporte DSF

@@ -7,6 +7,11 @@ import json
 import sys
 from pathlib import Path
 
+CICD_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(CICD_ROOT))
+
+from dsf.sync_policy import load_sync_policy, resolve_requires_agent  # noqa: E402
+
 DEFAULT_TARGET_SIM = 98.0
 
 
@@ -40,10 +45,12 @@ def main() -> int:
     parser.add_argument("--blocking", default="true")
     args = parser.parse_args()
 
-    dsf = load_dsf_config(Path(args.cicd_dir))
+    cicd_dir = Path(args.cicd_dir)
+    dsf = load_dsf_config(cicd_dir)
+    policy = load_sync_policy(cicd_dir)
     blocking = args.blocking.lower() == "true" and dsf.get("blockingGates", True)
     target_sim = float(dsf.get("targetSimilarityPercent", DEFAULT_TARGET_SIM))
-    if args.min_similarity > 0:
+    if args.min_similarity > 0 and policy.get("blockOnSimilarity", True):
         target_sim = args.min_similarity
 
     errors: list[str] = []
@@ -53,7 +60,7 @@ def main() -> int:
     after = load_json(Path(args.design_after)) if args.design_after else before
     manifest = load_json(Path(args.manifest)) if args.manifest else {}
 
-    if not before:
+    if not before and not policy.get("designComparisonInformational"):
         errors.append("Falta design-comparison (baseline)")
 
     before_sim = float(before.get("overallSimilarityPercent", 0))
@@ -68,17 +75,10 @@ def main() -> int:
     smoke_ok = args.smoke_ok.lower() == "true"
     port_map_ok = args.port_map_ok.lower() == "true"
 
-    requires_agent = bool(
-        manifest.get("requiresAgent")
-        or before.get("requiresAgentForDesignAlignment")
-        or manifest.get("hasUiChanges")
-        or manifest.get("hasRulesChanges")
-    )
-    force_below = dsf.get("forceAgentBelowSimilarity", True)
-    needs_agent = requires_agent or (force_below and before_sim < target_sim)
+    needs_agent = resolve_requires_agent(manifest, before, policy, target_similarity=target_sim)
 
     if needs_agent and not agent_ran:
-        errors.append("Se requería agente (cambios UI/reglas o similitud baja) pero adapt fue omitido")
+        errors.append("Se requería adapt (cambios en manifiesto Lovable) pero adapt fue omitido")
 
     if not deploy_ran:
         errors.append("Deploy DEV no se ejecutó")
@@ -95,21 +95,23 @@ def main() -> int:
     if after_sim < target_sim:
         msg = (
             f"Similitud {after_sim}% < objetivo {target_sim}% — "
-            f"quedan ~{pending} gaps pendientes"
+            f"~{pending} ítems en reporte informativo (no bloqueante)"
+            if policy.get("designComparisonInformational")
+            else f"Similitud {after_sim}% < objetivo {target_sim}% — quedan ~{pending} gaps pendientes"
         )
-        dev_phase = dsf.get("devValidationPhase", False)
-        if blocking and not dev_phase:
+        if policy.get("blockOnSimilarity") and blocking:
             errors.append(msg)
         else:
             warnings.append(msg)
 
     if before_sim > 0 and after_sim < before_sim - 5:
-        warnings.append(f"Similitud empeoró: {before_sim}% → {after_sim}%")
+        warnings.append(f"Similitud empeoró: {before_sim}% → {after_sim}% (informativo)")
 
     result = {
         "ok": len(errors) == 0,
         "framework": "DSF",
         "blockingGates": blocking,
+        "syncPolicy": policy,
         "errors": errors,
         "warnings": warnings,
         "lovableSha": args.lovable_sha,
@@ -123,7 +125,7 @@ def main() -> int:
         "smokeRan": smoke_ran,
         "smokeOk": smoke_ok,
         "portMapOk": port_map_ok,
-        "requiresGapEmpalme": after_sim < target_sim,
+        "requiresGapEmpalme": after_sim < target_sim and policy.get("blockOnSimilarity", True),
         "qaPromotionEnabled": dsf.get("qaPromotion", {}).get("enabled", False),
     }
 

@@ -346,6 +346,8 @@ jobs:
   adapt:
     needs: [prepare, agents-pre-adapt]
     if: |
+      always() &&
+      needs.prepare.result == 'success' &&
       needs.prepare.outputs.requires_agent == 'true' &&
       (inputs.run_agent != 'false' && github.event.inputs.run_agent != 'false' && github.event.client_payload.run_agent != 'false')
     runs-on: ubuntu-latest

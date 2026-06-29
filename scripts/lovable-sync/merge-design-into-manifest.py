@@ -43,29 +43,39 @@ def main() -> int:
     if policy.get("adaptOnDesignGaps"):
         existing = {f.get("path") for f in manifest.get("changedFiles") or []}
         injected = 0
+        reempalme_prefixes = ("src/components/feed/", "src/index.css")
         for item in design.get("lowSimilarity") or []:
             lp = str(item.get("lovablePath") or "").strip()
-            if lp and lp not in existing:
-                manifest.setdefault("changedFiles", []).append({
-                    "path": lp,
-                    "kind": "ui",
-                    "status": "M",
-                    "source": "design-gap",
-                    "similarityPercent": item.get("similarityPercent"),
-                })
-                existing.add(lp)
-                injected += 1
+            pct = float(item.get("similarityPercent") or 100)
+            if not lp or lp in existing:
+                continue
+            if pct >= 95:
+                continue
+            if not any(lp.startswith(p) for p in reempalme_prefixes):
+                continue
+            manifest.setdefault("changedFiles", []).append({
+                "path": lp,
+                "kind": "ui",
+                "status": "M",
+                "source": "design-gap",
+                "similarityPercent": pct,
+            })
+            existing.add(lp)
+            injected += 1
         for lp in design.get("missingInWeb") or []:
             lp = str(lp).strip()
-            if lp and lp not in existing:
-                manifest.setdefault("changedFiles", []).append({
-                    "path": lp,
-                    "kind": "ui",
-                    "status": "A",
-                    "source": "design-gap",
-                })
-                existing.add(lp)
-                injected += 1
+            if not lp or lp in existing:
+                continue
+            if not any(lp.startswith(p) for p in reempalme_prefixes):
+                continue
+            manifest.setdefault("changedFiles", []).append({
+                "path": lp,
+                "kind": "ui",
+                "status": "A",
+                "source": "design-gap",
+            })
+            existing.add(lp)
+            injected += 1
         if injected:
             manifest["hasUiChanges"] = True
             manifest["designGapReempalme"] = injected

@@ -56,7 +56,7 @@ jobs:
             -f "client_payload[agent_mode]=frontend-only" \
             -f "client_payload[deploy_dev_after]=$DEPLOY_DEV" \
             -f "client_payload[run_gap_loop]=false" \
-            -f "client_payload[cursor_fallback]=false" \
+            -f "client_payload[cursor_fallback]=true" \
             -f "client_payload[web_cicd_branch]=feature/cicd/dev-automation"
 
       - name: Fallback workflow_dispatch
@@ -71,5 +71,5 @@ jobs:
             -f lovable_ref="${{ github.sha }}" \
             -f deploy_dev_after="${{ inputs.deploy_dev_after || 'true' }}" \
             -f run_gap_loop=false \
-            -f cursor_fallback=false \
+            -f cursor_fallback=true \
             -f web_cicd_branch=feature/cicd/dev-automation

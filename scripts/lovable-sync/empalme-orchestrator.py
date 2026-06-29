@@ -100,15 +100,21 @@ def main() -> int:
     python_max_sim = float(strategy.get("pythonMaxSimApply", 85))
     max_items = int(strategy.get("maxPythonFilesPerRun", 50))
     max_cursor = int(strategy.get("maxCursorFilesPerRun", 5))
+    max_cursor_escalations = int(strategy.get("maxCursorEscalations", 1))
+    cursor_enabled_cfg = bool(strategy.get("cursorFallbackEnabled", True))
     lovable_path = Path(args.lovable_dir).resolve()
     try:
         from quality_policy import cursor_policy, load_quality_policy
 
         cp = cursor_policy(load_quality_policy(lovable_path))
         max_cursor = int(cp.get("maxFilesPerRun", max_cursor))
+        max_cursor_escalations = min(max_cursor_escalations, int(cp.get("maxEscalations", max_cursor_escalations)))
         cursor_auto = cp.get("autoEscalateWhenPythonFails", strategy.get("cursorAutoEscalate", True))
+        cursor_default_on = bool(cp.get("enabledByDefault", False))
     except ImportError:
         cursor_auto = strategy.get("cursorAutoEscalate", True)
+        cursor_default_on = False
+        cp = {}
 
     before_path = cicd / f"design-comparison-before-{args.run_id}.json"
     after_python = cicd / f"design-comparison-after-python-{args.run_id}.json"
@@ -231,10 +237,17 @@ def main() -> int:
         and has_api_key
         and not args.dry_run
         and cursor_preconditions
-        and (args.cursor_fallback or cursor_auto)
+        and cursor_enabled_cfg
+        and max_cursor_escalations > 0
+        and (args.cursor_fallback or cursor_auto or cursor_default_on)
     )
     if cursor_items and not has_api_key and not args.dry_run:
-        print("AVISO: Python dejó items para Cursor pero falta CURSOR_API_KEY — ver reporte manualRequired/cursorRequired")
+        print("AVISO: Python dejó items para Cursor pero falta CURSOR_API_KEY — ver reporte manualRequired/cursorRequired", file=sys.stderr)
+    elif cursor_items and not should_cursor and not args.dry_run:
+        print(
+            "AVISO: Cursor deshabilitado por config/flags — items pendientes en cursorRequired",
+            file=sys.stderr,
+        )
 
     if should_cursor:
         manifest = build_cursor_manifest(cicd, args.run_id, cursor_items, max_cursor)

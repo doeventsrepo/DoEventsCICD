@@ -29,8 +29,8 @@ on:
         type: choice
         options: ['true', 'false']
       cursor_fallback:
-        description: Escalado único Cursor API (max 5 archivos, sin loop) — requiere aprobación
-        default: 'false'
+        description: Escalado único Cursor API (max 5 archivos, 1 batch, sin loop)
+        default: 'true'
         type: choice
         options: ['true', 'false']
       web_cicd_branch:
@@ -60,7 +60,7 @@ on:
         default: 'false'
       cursor_fallback:
         type: string
-        default: 'false'
+        default: 'true'
       web_cicd_branch:
         type: string
         default: feature/cicd/dev-automation
@@ -159,6 +159,7 @@ jobs:
           echo "- App: **${{ needs.resolve.outputs.app_id }}**" >> "$GITHUB_STEP_SUMMARY"
           echo "- Lovable ref: ${{ inputs.lovable_ref || github.event.client_payload.ref || 'main' }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- Deploy DEV: ${{ env.DSF_DEPLOY_DEV }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Cursor fallback: ${{ inputs.cursor_fallback || github.event.inputs.cursor_fallback || github.event.client_payload.cursor_fallback || 'true' }} (1 batch, sin gap-loop)" >> "$GITHUB_STEP_SUMMARY"
           echo "- QA promoción: **inhabilitada**" >> "$GITHUB_STEP_SUMMARY"
           echo "- Rama WEB: ${{ needs.resolve.outputs.web_cicd_branch }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- DEV: ${{ needs.resolve.outputs.deploy_dev_domain }}" >> "$GITHUB_STEP_SUMMARY"
@@ -394,10 +395,16 @@ jobs:
           WEB_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
         run: |
           MANIFEST=cicd/artifacts-pre/lovable-change-manifest.json
+          WEB_BRANCH="${{ needs.prepare.outputs.web_branch }}"
+          CURSOR_FB="${{ inputs.cursor_fallback || github.event.inputs.cursor_fallback || github.event.client_payload.cursor_fallback || 'true' }}"
           CURSOR_FLAG=""
-          CURSOR_FB="${{ inputs.cursor_fallback || github.event.inputs.cursor_fallback || github.event.client_payload.cursor_fallback || 'false' }}"
           if [ "$CURSOR_FB" = "true" ]; then
             CURSOR_FLAG="--cursor-fallback"
+          fi
+          if [ -z "${CURSOR_API_KEY:-}" ]; then
+            echo "AVISO: CURSOR_API_KEY no configurado — solo empalme Python (sin escalado Cursor)" >&2
+          else
+            echo "Cursor API OK — escalado único si Python no cierra el diff (sin gap-loop)"
           fi
           python3 cicd/scripts/lovable-sync/empalme-orchestrator.py \
             --lovable-dir lovable --web-dir DoEventsWEB --cicd-dir cicd \
@@ -409,12 +416,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${WEB_PAT}@github.com/${{ needs.prepare.outputs.web_repo }}.git"
+          git fetch origin "$WEB_BRANCH"
+          git pull --rebase origin "$WEB_BRANCH" || git merge "origin/$WEB_BRANCH" -m "merge post-empalme run ${{ github.run_id }}" || true
           git add -A
           if git diff --staged --quiet; then
-            echo "Sin cambios WEB tras empalme Python"
+            echo "Sin cambios WEB locales tras empalme (Cursor pudo haber pusheado remoto)"
           else
             git commit -m "feat(dsf): empalme python-first run ${{ github.run_id }} [lovable:${{ needs.prepare.outputs.lovable_sha }}]"
-            git push origin HEAD:${{ needs.prepare.outputs.web_branch }}
+            git push origin HEAD:"$WEB_BRANCH"
           fi
 
       - name: Gate G3 — Anti-mocks

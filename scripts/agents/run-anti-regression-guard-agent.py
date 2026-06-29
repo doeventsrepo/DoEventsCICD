@@ -72,12 +72,21 @@ def main() -> int:
         for item in full_applied:
             wp = item.get("webPath", "")
             reason = item.get("reason", "")
+            detail = str(item.get("deltaDetail") or "")
+            mode = str(item.get("applyMode") or "")
             existed = item.get("webExistedBeforeApply")
             if existed is None:
-                # Compat resultados previos: inferir por motivo de empalme
                 existed = not any(m in reason for m in new_file_reasons)
-            if existed and wp:
-                violations.append(f"full_replace_sobre_existente:{wp}")
+            if not existed or not wp:
+                continue
+            # Re-empalme fidelidad Python (design-gap / full_sync con override) — esperado sobre existente
+            if item.get("tier") == "python" and (
+                "fidelity" in detail
+                or mode == "css_fidelity_merge"
+                or "delta_only" in reason
+            ):
+                continue
+            violations.append(f"full_replace_sobre_existente:{wp}")
 
     if regression_items:
         for item in regression_items[:5]:

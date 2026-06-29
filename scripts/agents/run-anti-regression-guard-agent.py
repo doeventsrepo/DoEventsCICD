@@ -92,6 +92,10 @@ def main() -> int:
         for item in regression_items[:5]:
             violations.append(f"{item.get('lovablePath')}: {item.get('reason', '')[:120]}")
 
+    # Python aplicó full_sync de fidelidad sin escalaciones anti_regression pendientes
+    if full_applied and not regression_items:
+        violations = [v for v in violations if not v.startswith("full_replace_sobre_existente:")]
+
     passed = len(violations) == 0
     out = {
         "runId": args.run_id,

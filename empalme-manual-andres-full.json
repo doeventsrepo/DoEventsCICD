@@ -1,0 +1,485 @@
+{
+  "runId": "manual-andres-full",
+  "dryRun": false,
+  "appliedCount": 73,
+  "skippedCount": 7,
+  "errorCount": 0,
+  "applied": [
+    {
+      "lovablePath": "src/components/admin/SupportSearchPanel.tsx",
+      "webPath": "packages/shell/src/lovable/components/admin/SupportSearchPanel.tsx",
+      "similarityPercent": 1.49,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/admin/NewUsersPanel.tsx",
+      "webPath": "packages/shell/src/lovable/components/admin/NewUsersPanel.tsx",
+      "similarityPercent": 1.52,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/admin/PaymentsPanel.tsx",
+      "webPath": "packages/shell/src/lovable/components/admin/PaymentsPanel.tsx",
+      "similarityPercent": 1.59,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/admin/AdminUsersPanel.tsx",
+      "webPath": "packages/shell/src/lovable/components/admin/AdminUsersPanel.tsx",
+      "similarityPercent": 1.73,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/admin/EventSalesDetail.tsx",
+      "webPath": "packages/shell/src/lovable/components/admin/EventSalesDetail.tsx",
+      "similarityPercent": 2.32,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/hooks/useGuests.ts",
+      "webPath": "packages/shell/src/lovable/hooks/useGuests.ts",
+      "similarityPercent": 2.45,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/admin/AdminPanelView.tsx",
+      "webPath": "packages/shell/src/lovable/components/admin/AdminPanelView.tsx",
+      "similarityPercent": 2.61,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/contexts/StoriesContext.tsx",
+      "webPath": "packages/shell/src/lovable/contexts/StoriesContext.tsx",
+      "similarityPercent": 8.51,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/admin/AdminReportsPanel.tsx",
+      "webPath": "packages/shell/src/lovable/components/admin/AdminReportsPanel.tsx",
+      "similarityPercent": 15.35,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/invitations/TicketPurchaseFlow.tsx",
+      "webPath": "packages/shell/src/lovable/components/invitations/TicketPurchaseFlow.tsx",
+      "similarityPercent": 24.32,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/StoryViewer.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/StoryViewer.tsx",
+      "similarityPercent": 45.36,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/ProfileCommentsView.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/ProfileCommentsView.tsx",
+      "similarityPercent": 49.27,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/ai/AIAssistantView.tsx",
+      "webPath": "packages/shell/src/lovable/components/ai/AIAssistantView.tsx",
+      "similarityPercent": 57.68,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/ChangeLocationSheet.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/ChangeLocationSheet.tsx",
+      "similarityPercent": 57.96,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/KycCertificationView.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/KycCertificationView.tsx",
+      "similarityPercent": 60.94,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/pages/NotFound.tsx",
+      "webPath": "packages/shell/src/pages/NotFound.tsx",
+      "similarityPercent": 62.28,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/pages/Index.tsx",
+      "webPath": "packages/shell/src/pages/EventsPage.tsx",
+      "similarityPercent": 62.32,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/events/EventDetailView.tsx",
+      "webPath": "packages/shell/src/lovable/components/events/EventDetailView.tsx",
+      "similarityPercent": 67.92,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/pages/VenueDetail.tsx",
+      "webPath": "packages/shell/src/pages/PlaceDetailPage.tsx",
+      "similarityPercent": 68.01,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/guests/EventInvitationModal.tsx",
+      "webPath": "packages/shell/src/lovable/components/guests/EventInvitationModal.tsx",
+      "similarityPercent": 68.17,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/venues/MediaUpload.tsx",
+      "webPath": "packages/shell/src/lovable/components/venues/MediaUpload.tsx",
+      "similarityPercent": 69.53,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/banking/BankingHub.tsx",
+      "webPath": "packages/shell/src/lovable/components/banking/BankingHub.tsx",
+      "similarityPercent": 73.07,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/chat/MessagesListView.tsx",
+      "webPath": "packages/shell/src/lovable/components/chat/MessagesListView.tsx",
+      "similarityPercent": 73.11,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/purchases/MyPurchasesView.tsx",
+      "webPath": "packages/shell/src/lovable/components/purchases/MyPurchasesView.tsx",
+      "similarityPercent": 73.42,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/purchases/MyReservedVenuesView.tsx",
+      "webPath": "packages/shell/src/lovable/components/purchases/MyReservedVenuesView.tsx",
+      "similarityPercent": 73.59,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/tickets/SeatLocationModal.tsx",
+      "webPath": "packages/shell/src/lovable/components/tickets/SeatLocationModal.tsx",
+      "similarityPercent": 75.11,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/AddStorySheet.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/AddStorySheet.tsx",
+      "similarityPercent": 76.19,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/pages/EventPublished.tsx",
+      "webPath": "packages/shell/src/pages/EventDetailPage.tsx",
+      "similarityPercent": 77.19,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/GlobalSearchView.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/GlobalSearchView.tsx",
+      "similarityPercent": 77.81,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/StoryViewersSheet.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/StoryViewersSheet.tsx",
+      "similarityPercent": 79.02,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/EventsView.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/EventsView.tsx",
+      "similarityPercent": 79.43,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/ReportPostDialog.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/ReportPostDialog.tsx",
+      "similarityPercent": 82.56,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/purchases/MyReservedServicesView.tsx",
+      "webPath": "packages/shell/src/lovable/components/purchases/MyReservedServicesView.tsx",
+      "similarityPercent": 83.25,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/events/SeatingMapEditor.tsx",
+      "webPath": "packages/shell/src/lovable/components/events/SeatingMapEditor.tsx",
+      "similarityPercent": 84.55,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/events/EventPreviewModal.tsx",
+      "webPath": "packages/shell/src/lovable/components/events/EventPreviewModal.tsx",
+      "similarityPercent": 85.07,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/tickets/RefundTicketFlow.tsx",
+      "webPath": "packages/shell/src/lovable/components/tickets/RefundTicketFlow.tsx",
+      "similarityPercent": 85.23,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/stats/AccessControlView.tsx",
+      "webPath": "packages/shell/src/lovable/components/stats/AccessControlView.tsx",
+      "similarityPercent": 85.25,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/FeedHero.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/FeedHero.tsx",
+      "similarityPercent": 85.48,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/venues/VenueCreator.tsx",
+      "webPath": "packages/shell/src/lovable/components/venues/VenueCreator.tsx",
+      "similarityPercent": 85.58,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/guests/GuestManagementView.tsx",
+      "webPath": "packages/shell/src/lovable/components/guests/GuestManagementView.tsx",
+      "similarityPercent": 85.65,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/events/StepEventSummary.tsx",
+      "webPath": "packages/shell/src/lovable/components/events/StepEventSummary.tsx",
+      "similarityPercent": 85.85,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/events/StepAccessControl.tsx",
+      "webPath": "packages/shell/src/lovable/components/events/StepAccessControl.tsx",
+      "similarityPercent": 86.83,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/guests/EditGuestModal.tsx",
+      "webPath": "packages/shell/src/lovable/components/guests/EditGuestModal.tsx",
+      "similarityPercent": 87.35,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/venues/sections/PreferencesRefundSection.tsx",
+      "webPath": "packages/shell/src/lovable/components/venues/sections/PreferencesRefundSection.tsx",
+      "similarityPercent": 88.56,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/stats/StatsEventListView.tsx",
+      "webPath": "packages/shell/src/lovable/components/stats/StatsEventListView.tsx",
+      "similarityPercent": 88.76,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/venues/VenueDetailReservation.tsx",
+      "webPath": "packages/shell/src/lovable/components/venues/VenueDetailReservation.tsx",
+      "similarityPercent": 88.78,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/ai/AIAssistantFAB.tsx",
+      "webPath": "packages/shell/src/lovable/components/ai/AIAssistantFAB.tsx",
+      "similarityPercent": 88.94,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/guests/GroupDropZone.tsx",
+      "webPath": "packages/shell/src/lovable/components/guests/GroupDropZone.tsx",
+      "similarityPercent": 89.13,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/UserProfileView.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/UserProfileView.tsx",
+      "similarityPercent": 89.32,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/purchases/VenueReservationDetail.tsx",
+      "webPath": "packages/shell/src/lovable/components/purchases/VenueReservationDetail.tsx",
+      "similarityPercent": 89.39,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/ImageCarousel.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/ImageCarousel.tsx",
+      "similarityPercent": 89.46,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/admin/AdminRefundsPanel.tsx",
+      "webPath": "packages/shell/src/lovable/components/admin/AdminRefundsPanel.tsx",
+      "similarityPercent": 89.53,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/purchases/ServiceReservationDetail.tsx",
+      "webPath": "packages/shell/src/lovable/components/purchases/ServiceReservationDetail.tsx",
+      "similarityPercent": 90.18,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/services/ServiceDetailView.tsx",
+      "webPath": "packages/shell/src/lovable/components/services/ServiceDetailView.tsx",
+      "similarityPercent": 90.51,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/MyEventsView.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/MyEventsView.tsx",
+      "similarityPercent": 90.54,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/events/StepFaqs.tsx",
+      "webPath": "packages/shell/src/lovable/components/events/StepFaqs.tsx",
+      "similarityPercent": 90.59,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/invitations/InvitationEventDetailView.tsx",
+      "webPath": "packages/shell/src/lovable/components/invitations/InvitationEventDetailView.tsx",
+      "similarityPercent": 90.68,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/tickets/TransferTicketFlow.tsx",
+      "webPath": "packages/shell/src/lovable/components/tickets/TransferTicketFlow.tsx",
+      "similarityPercent": 90.68,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/FavoritesView.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/FavoritesView.tsx",
+      "similarityPercent": 91.06,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/ProfileGallery.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/ProfileGallery.tsx",
+      "similarityPercent": 91.41,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/RepostSheet.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/RepostSheet.tsx",
+      "similarityPercent": 91.6,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/ProfileView.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/ProfileView.tsx",
+      "similarityPercent": 91.84,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/services/MyServicesView.tsx",
+      "webPath": "packages/shell/src/lovable/components/services/MyServicesView.tsx",
+      "similarityPercent": 91.87,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/feed/EditProfileView.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/EditProfileView.tsx",
+      "similarityPercent": 92.09,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/stats/GuestStatsView.tsx",
+      "webPath": "packages/shell/src/lovable/components/stats/GuestStatsView.tsx",
+      "similarityPercent": 92.12,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/chat/ChatRoomView.tsx",
+      "webPath": "packages/shell/src/lovable/components/chat/ChatRoomView.tsx",
+      "similarityPercent": 92.46,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/venues/seating/SeatingCategoryDialog.tsx",
+      "webPath": "packages/shell/src/lovable/components/venues/seating/SeatingCategoryDialog.tsx",
+      "similarityPercent": 92.74,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/services/PaymentGatewaySheet.tsx",
+      "webPath": "packages/shell/src/lovable/components/services/PaymentGatewaySheet.tsx",
+      "similarityPercent": 93.19,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/stats/CategoryBuyerList.tsx",
+      "webPath": "packages/shell/src/lovable/components/stats/CategoryBuyerList.tsx",
+      "similarityPercent": 93.31,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/events/StepEventDetails.tsx",
+      "webPath": "packages/shell/src/lovable/components/events/StepEventDetails.tsx",
+      "similarityPercent": 93.66,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/banking/PaymentMethodsDashboard.tsx",
+      "webPath": "packages/shell/src/lovable/components/banking/PaymentMethodsDashboard.tsx",
+      "similarityPercent": 93.68,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/services/BookingSheet.tsx",
+      "webPath": "packages/shell/src/lovable/components/services/BookingSheet.tsx",
+      "similarityPercent": 93.83,
+      "dryRun": false
+    },
+    {
+      "lovablePath": "src/components/events/StepAgenda.tsx",
+      "webPath": "packages/shell/src/lovable/components/events/StepAgenda.tsx",
+      "similarityPercent": 93.95,
+      "dryRun": false
+    }
+  ],
+  "skipped": [
+    {
+      "lovablePath": "src/contexts/KycContext.tsx",
+      "webPath": "packages/shell/src/lovable/contexts/KycContext.tsx",
+      "reason": "skip_path:/contexts/KycContext.tsx"
+    },
+    {
+      "lovablePath": "src/contexts/NotificationsContext.tsx",
+      "webPath": "packages/shell/src/lovable/contexts/NotificationsContext.tsx",
+      "reason": "skip_path:/contexts/NotificationsContext.tsx"
+    },
+    {
+      "lovablePath": "src/components/feed/MapView.tsx",
+      "webPath": "packages/shell/src/lovable/components/feed/MapView.tsx",
+      "reason": "skip_path:/components/feed/MapView.tsx"
+    },
+    {
+      "lovablePath": "src/components/access/AccessControlListView.tsx",
+      "webPath": "packages/shell/src/lovable/components/access/AccessControlListView.tsx",
+      "reason": "sin_cambios"
+    },
+    {
+      "lovablePath": "src/components/guests/ContactImportModal.tsx",
+      "webPath": "packages/shell/src/lovable/components/guests/ContactImportModal.tsx",
+      "reason": "sin_cambios"
+    },
+    {
+      "lovablePath": "src/components/access/ScanQRSheet.tsx",
+      "webPath": "packages/shell/src/lovable/components/access/ScanQRSheet.tsx",
+      "reason": "sin_cambios"
+    },
+    {
+      "lovablePath": "src/components/common/ImageLightbox.tsx",
+      "webPath": "packages/shell/src/lovable/components/common/ImageLightbox.tsx",
+      "reason": "sin_cambios"
+    }
+  ],
+  "errors": []
+}

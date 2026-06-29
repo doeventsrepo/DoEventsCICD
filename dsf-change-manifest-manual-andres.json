@@ -1,0 +1,371 @@
+{
+  "version": "1.0",
+  "purpose": "manual empalme AndresDavid",
+  "changedFiles": [
+    {
+      "path": "src/components/admin/SupportSearchPanel.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/admin/SupportSearchPanel.tsx"
+    },
+    {
+      "path": "src/components/admin/NewUsersPanel.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/admin/NewUsersPanel.tsx"
+    },
+    {
+      "path": "src/components/admin/PaymentsPanel.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/admin/PaymentsPanel.tsx"
+    },
+    {
+      "path": "src/components/admin/AdminUsersPanel.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/admin/AdminUsersPanel.tsx"
+    },
+    {
+      "path": "src/components/admin/EventSalesDetail.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/admin/EventSalesDetail.tsx"
+    },
+    {
+      "path": "src/hooks/useGuests.ts",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/hooks/useGuests.ts"
+    },
+    {
+      "path": "src/components/admin/AdminPanelView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/admin/AdminPanelView.tsx"
+    },
+    {
+      "path": "src/contexts/StoriesContext.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/contexts/StoriesContext.tsx"
+    },
+    {
+      "path": "src/components/admin/AdminReportsPanel.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/admin/AdminReportsPanel.tsx"
+    },
+    {
+      "path": "src/components/invitations/TicketPurchaseFlow.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/invitations/TicketPurchaseFlow.tsx"
+    },
+    {
+      "path": "src/components/feed/StoryViewer.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/StoryViewer.tsx"
+    },
+    {
+      "path": "src/components/feed/ProfileCommentsView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/ProfileCommentsView.tsx"
+    },
+    {
+      "path": "src/components/ai/AIAssistantView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/ai/AIAssistantView.tsx"
+    },
+    {
+      "path": "src/components/feed/ChangeLocationSheet.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/ChangeLocationSheet.tsx"
+    },
+    {
+      "path": "src/components/feed/KycCertificationView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/KycCertificationView.tsx"
+    },
+    {
+      "path": "src/pages/NotFound.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/pages/NotFound.tsx"
+    },
+    {
+      "path": "src/pages/Index.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/pages/EventsPage.tsx"
+    },
+    {
+      "path": "src/components/events/EventDetailView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/events/EventDetailView.tsx"
+    },
+    {
+      "path": "src/pages/VenueDetail.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/pages/PlaceDetailPage.tsx"
+    },
+    {
+      "path": "src/components/guests/EventInvitationModal.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/guests/EventInvitationModal.tsx"
+    },
+    {
+      "path": "src/components/venues/MediaUpload.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/venues/MediaUpload.tsx"
+    },
+    {
+      "path": "src/components/banking/BankingHub.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/banking/BankingHub.tsx"
+    },
+    {
+      "path": "src/components/chat/MessagesListView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/chat/MessagesListView.tsx"
+    },
+    {
+      "path": "src/components/purchases/MyPurchasesView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/purchases/MyPurchasesView.tsx"
+    },
+    {
+      "path": "src/components/purchases/MyReservedVenuesView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/purchases/MyReservedVenuesView.tsx"
+    },
+    {
+      "path": "src/components/tickets/SeatLocationModal.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/tickets/SeatLocationModal.tsx"
+    },
+    {
+      "path": "src/components/feed/AddStorySheet.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/AddStorySheet.tsx"
+    },
+    {
+      "path": "src/pages/EventPublished.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/pages/EventDetailPage.tsx"
+    },
+    {
+      "path": "src/components/feed/GlobalSearchView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/GlobalSearchView.tsx"
+    },
+    {
+      "path": "src/components/feed/StoryViewersSheet.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/StoryViewersSheet.tsx"
+    },
+    {
+      "path": "src/components/feed/EventsView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/EventsView.tsx"
+    },
+    {
+      "path": "src/components/feed/ReportPostDialog.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/ReportPostDialog.tsx"
+    },
+    {
+      "path": "src/components/purchases/MyReservedServicesView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/purchases/MyReservedServicesView.tsx"
+    },
+    {
+      "path": "src/components/events/SeatingMapEditor.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/events/SeatingMapEditor.tsx"
+    },
+    {
+      "path": "src/components/events/EventPreviewModal.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/events/EventPreviewModal.tsx"
+    },
+    {
+      "path": "src/components/tickets/RefundTicketFlow.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/tickets/RefundTicketFlow.tsx"
+    },
+    {
+      "path": "src/components/stats/AccessControlView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/stats/AccessControlView.tsx"
+    },
+    {
+      "path": "src/components/feed/FeedHero.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/FeedHero.tsx"
+    },
+    {
+      "path": "src/components/venues/VenueCreator.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/venues/VenueCreator.tsx"
+    },
+    {
+      "path": "src/components/guests/GuestManagementView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/guests/GuestManagementView.tsx"
+    },
+    {
+      "path": "src/components/events/StepEventSummary.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/events/StepEventSummary.tsx"
+    },
+    {
+      "path": "src/components/events/StepAccessControl.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/events/StepAccessControl.tsx"
+    },
+    {
+      "path": "src/components/guests/EditGuestModal.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/guests/EditGuestModal.tsx"
+    },
+    {
+      "path": "src/components/venues/sections/PreferencesRefundSection.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/venues/sections/PreferencesRefundSection.tsx"
+    },
+    {
+      "path": "src/components/stats/StatsEventListView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/stats/StatsEventListView.tsx"
+    },
+    {
+      "path": "src/components/venues/VenueDetailReservation.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/venues/VenueDetailReservation.tsx"
+    },
+    {
+      "path": "src/components/ai/AIAssistantFAB.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/ai/AIAssistantFAB.tsx"
+    },
+    {
+      "path": "src/components/guests/GroupDropZone.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/guests/GroupDropZone.tsx"
+    },
+    {
+      "path": "src/components/feed/UserProfileView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/UserProfileView.tsx"
+    },
+    {
+      "path": "src/components/purchases/VenueReservationDetail.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/purchases/VenueReservationDetail.tsx"
+    },
+    {
+      "path": "src/components/feed/ImageCarousel.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/ImageCarousel.tsx"
+    },
+    {
+      "path": "src/components/admin/AdminRefundsPanel.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/admin/AdminRefundsPanel.tsx"
+    },
+    {
+      "path": "src/components/purchases/ServiceReservationDetail.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/purchases/ServiceReservationDetail.tsx"
+    },
+    {
+      "path": "src/components/services/ServiceDetailView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/services/ServiceDetailView.tsx"
+    },
+    {
+      "path": "src/components/feed/MyEventsView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/MyEventsView.tsx"
+    },
+    {
+      "path": "src/components/events/StepFaqs.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/events/StepFaqs.tsx"
+    },
+    {
+      "path": "src/components/invitations/InvitationEventDetailView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/invitations/InvitationEventDetailView.tsx"
+    },
+    {
+      "path": "src/components/tickets/TransferTicketFlow.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/tickets/TransferTicketFlow.tsx"
+    },
+    {
+      "path": "src/components/feed/FavoritesView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/FavoritesView.tsx"
+    },
+    {
+      "path": "src/components/feed/ProfileGallery.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/ProfileGallery.tsx"
+    },
+    {
+      "path": "src/components/feed/RepostSheet.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/RepostSheet.tsx"
+    },
+    {
+      "path": "src/components/feed/ProfileView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/ProfileView.tsx"
+    },
+    {
+      "path": "src/components/services/MyServicesView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/services/MyServicesView.tsx"
+    },
+    {
+      "path": "src/components/feed/EditProfileView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/feed/EditProfileView.tsx"
+    },
+    {
+      "path": "src/components/stats/GuestStatsView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/stats/GuestStatsView.tsx"
+    },
+    {
+      "path": "src/components/chat/ChatRoomView.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/chat/ChatRoomView.tsx"
+    },
+    {
+      "path": "src/components/venues/seating/SeatingCategoryDialog.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/venues/seating/SeatingCategoryDialog.tsx"
+    },
+    {
+      "path": "src/components/services/PaymentGatewaySheet.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/services/PaymentGatewaySheet.tsx"
+    },
+    {
+      "path": "src/components/stats/CategoryBuyerList.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/stats/CategoryBuyerList.tsx"
+    },
+    {
+      "path": "src/components/events/StepEventDetails.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/events/StepEventDetails.tsx"
+    },
+    {
+      "path": "src/components/banking/PaymentMethodsDashboard.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/banking/PaymentMethodsDashboard.tsx"
+    },
+    {
+      "path": "src/components/services/BookingSheet.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/services/BookingSheet.tsx"
+    },
+    {
+      "path": "src/components/events/StepAgenda.tsx",
+      "kind": "ui",
+      "webPath": "packages/shell/src/lovable/components/events/StepAgenda.tsx"
+    }
+  ]
+}

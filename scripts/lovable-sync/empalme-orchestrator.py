@@ -192,15 +192,24 @@ def main() -> int:
         from empalme_engine import python_fidelity_eligible
 
         lovable_path = Path(args.lovable_dir).resolve()
-        cursor_items = [
-            c for c in cursor_items
-            if not python_fidelity_eligible(lovable_path, str(c.get("lovablePath", "")))
-        ]
-        filtered = len(py_data.get("cursorRequired") or []) - len(cursor_items)
-        if filtered:
-            print(f"Cursor: omitidos {filtered} archivos tier python (fidelidad determinista)")
+        applied_lovable = {
+            str(a.get("lovablePath") or "").strip()
+            for a in py_data.get("applied") or []
+            if a.get("lovablePath")
+        }
+        fidelity_pending: list[str] = []
+        kept_cursor: list[dict] = []
+        for c in cursor_items:
+            lp = str(c.get("lovablePath") or "").strip()
+            if lp and python_fidelity_eligible(lovable_path, lp):
+                if lp not in applied_lovable:
+                    fidelity_pending.append(lp)
+            else:
+                kept_cursor.append(c)
+        cursor_items = kept_cursor
+        if fidelity_pending:
             print(
-                "ERROR: Python no empaló archivos de fidelidad — revisar empalme-python-result",
+                f"ERROR: Python no empaló fidelidad en: {', '.join(fidelity_pending[:5])}",
                 file=sys.stderr,
             )
             return 1

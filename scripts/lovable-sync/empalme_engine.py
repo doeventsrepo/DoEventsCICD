@@ -424,19 +424,27 @@ def resolve_targets(
 
         if lovable_root is not None:
             try:
+                from empalme_rules import resolve_agent_tier
                 from quality_policy import detect_escalations, is_delegated_path, load_quality_policy
 
+                rule_info = resolve_agent_tier(lovable_rel, lovable_root)
+                skip_quality_esc = (
+                    lovable_rel in force_set
+                    and rule_info.get("agentTier") == "python"
+                    and not rule_info.get("backendRequired")
+                )
                 pol = load_quality_policy(lovable_root)
                 if is_delegated_path(lovable_rel, pol):
                     items.append(EmpalmeItem(lovable_rel, web_rel, sim, status, "skipped", "reglasCalidad_delegated"))
                     continue
-                esc = detect_escalations(lovable_src, lovable_rel, pol)
-                if esc:
-                    items.append(EmpalmeItem(
-                        lovable_rel, web_rel, sim, status, "cursor",
-                        f"reglasCalidad_escalate ({'; '.join(esc[:2])})",
-                    ))
-                    continue
+                if not skip_quality_esc:
+                    esc = detect_escalations(lovable_src, lovable_rel, pol)
+                    if esc:
+                        items.append(EmpalmeItem(
+                            lovable_rel, web_rel, sim, status, "cursor",
+                            f"reglasCalidad_escalate ({'; '.join(esc[:2])})",
+                        ))
+                        continue
             except ImportError:
                 pass
 

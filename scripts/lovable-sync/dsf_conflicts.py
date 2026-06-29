@@ -123,6 +123,17 @@ def detect_conflicts(
         if emp_web and idx_web and emp_web != idx_web:
             if emp_lp and emp_lp != lp:
                 pass  # empalme de otra unidad — no comparar
+            elif idx_web and norm(str(pm.get("webPath", ""))) == idx_web:
+                # Bootstrap alineó index/port-map desde DoEventsWEB; regla empalme puede estar desactualizada.
+                conflicts.append({
+                    "lovablePath": lp,
+                    "type": "empalme_vs_index_webPath",
+                    "empalme": emp_web,
+                    "componentIndex": idx_web,
+                    "resolution": "manual-review",
+                    "winner": "reglasEmpalme",
+                    "note": "Regla empalme.webPath desactualizada — index/port-map manda",
+                })
             elif emp_lp == lp or (not emp_lp and not emp_web.endswith("Page.tsx")):
                 conflicts.append({
                     "lovablePath": lp,

@@ -459,7 +459,14 @@ def run_empalme(
                     transform_fn=_transform_fragment,
                 )
                 if delta.missed or delta.ambiguous:
-                    if sync_mode == "auto" and item.similarity < python_max_sim:
+                    partial_ok = (
+                        delta.applied_ops > 0
+                        and not delta.ambiguous
+                        and all(m.startswith("insert_ancla_no_encontrada:") for m in delta.missed)
+                    )
+                    if partial_ok:
+                        pass
+                    elif sync_mode == "auto" and item.similarity < python_max_sim:
                         use_full = True
                     else:
                         issues = delta.missed + delta.ambiguous

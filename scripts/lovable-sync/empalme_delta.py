@@ -199,6 +199,8 @@ def apply_lovable_delta(
 
         elif op["type"] == "insert":
             new_raw = "\n".join(op["new"])
+            if not new_raw.strip():
+                continue
             new_block = transform_fn(new_raw) if transform_fn else new_raw
             anchor = op.get("anchor_before") or op.get("anchor_after")
             if not anchor:

@@ -193,6 +193,18 @@ jobs:
           python-version: '3.11'
       - run: pip install -r cicd/requirements.txt
 
+      - name: Gate G-Stack — validar FE/BE y bootstrap si falta
+        env:
+          APP_ID: ${{ env.DSF_APP_ID }}
+        run: |
+          python3 cicd/scripts/lovable-sync/validate-app-stack.py \
+            --app-id "$APP_ID" \
+            --cicd-dir cicd \
+            --lovable-dir lovable \
+            --web-dir DoEventsWEB \
+            --bootstrap \
+            --run-id ${{ github.run_id }}
+
       - name: Bootstrap DSF index (component-index + port-map)
         run: |
           python3 cicd/scripts/lovable-sync/bootstrap-dsf-index.py \
@@ -394,12 +406,17 @@ jobs:
           WEB_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
         run: |
           MANIFEST=cicd/artifacts-pre/lovable-change-manifest.json
+          CURSOR_FLAG=""
+          CURSOR_FB="${{ inputs.cursor_fallback || github.event.inputs.cursor_fallback || github.event.client_payload.cursor_fallback || 'false' }}"
+          if [ "$CURSOR_FB" = "true" ]; then
+            CURSOR_FLAG="--cursor-fallback"
+          fi
           python3 cicd/scripts/lovable-sync/empalme-orchestrator.py \
             --lovable-dir lovable --web-dir DoEventsWEB --cicd-dir cicd \
             --port-map DoEventsWEB/.lovable-port-map.json \
             --change-manifest "$MANIFEST" \
             --run-id ${{ github.run_id }} \
-            --cursor-fallback
+            $CURSOR_FLAG
           cd DoEventsWEB
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

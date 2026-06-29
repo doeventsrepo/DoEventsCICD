@@ -239,6 +239,14 @@ def classify_tier(
     if is_reexport_stub(web_src):
         return "skipped", "bridge_reexport_preserved"
 
+    # diff-only: aplicar delta git del manifiesto antes de reglas YAML (p. ej. SeatingMapEditor)
+    if force_diff_apply and lovable_path in (force_paths or set()):
+        if web_src and BRIDGE_MARKERS.search(web_src):
+            return "python", "delta_only_archivo_empalado_con_bridge"
+        if web_src:
+            return "python", "delta_only_archivo_modificado_en_diff"
+        return "python", "archivo_nuevo_en_diff"
+
     if lovable_root is not None:
         try:
             from empalme_rules import resolve_agent_tier
@@ -256,13 +264,6 @@ def classify_tier(
                 return "skipped", "regla_yaml_delegated"
         except ImportError:
             pass
-
-    if force_diff_apply and lovable_path in (force_paths or set()):
-        if web_src and BRIDGE_MARKERS.search(web_src):
-            return "python", "delta_only_archivo_empalado_con_bridge"
-        if web_src:
-            return "python", "delta_only_archivo_modificado_en_diff"
-        return "python", "archivo_nuevo_en_diff"
 
     if BACKEND_HINTS.search(lovable_src) and similarity < 40:
         return "backend", "integracion_backend_requerida"

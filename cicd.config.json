@@ -160,6 +160,7 @@
       "mode": "python-first",
       "disableGapLoop": true,
       "scope": "diff-only",
+      "syncMode": "auto",
       "pythonMaxSimApply": 85,
       "maxPythonFilesPerRun": 50,
       "cursorFallbackEnabled": true,

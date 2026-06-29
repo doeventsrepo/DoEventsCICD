@@ -188,6 +188,24 @@ def main() -> int:
     after_path = after_python
 
     cursor_items = py_data.get("cursorRequired") or []
+    try:
+        from empalme_engine import python_fidelity_eligible
+
+        lovable_path = Path(args.lovable_dir).resolve()
+        cursor_items = [
+            c for c in cursor_items
+            if not python_fidelity_eligible(lovable_path, str(c.get("lovablePath", "")))
+        ]
+        filtered = len(py_data.get("cursorRequired") or []) - len(cursor_items)
+        if filtered:
+            print(f"Cursor: omitidos {filtered} archivos tier python (fidelidad determinista)")
+            print(
+                "ERROR: Python no empaló archivos de fidelidad — revisar empalme-python-result",
+                file=sys.stderr,
+            )
+            return 1
+    except ImportError:
+        pass
     has_api_key = bool(os.environ.get("CURSOR_API_KEY"))
 
     # Agentes 5-6: guards antes de Cursor (sin loops)
@@ -255,6 +273,7 @@ def main() -> int:
         os.environ.setdefault("LOVABLE_DIR", args.lovable_dir)
         os.environ.setdefault("WEB_DIR", args.web_dir)
         os.environ.setdefault("CICD_DIR", str(cicd))
+        os.environ["DSF_DESIGN_FIDELITY"] = "1"
         print(f"Cursor refuerzo único — {min(len(cursor_items), max_cursor)} archivos (maxRetries=0, sin loop)")
         rc_cursor = run([sys.executable, str(cursor_agent)])
         cursor_used = rc_cursor == 0

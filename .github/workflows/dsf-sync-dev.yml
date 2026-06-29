@@ -395,6 +395,7 @@ jobs:
           LOVABLE_DIR: ${{ github.workspace }}/lovable
           WEB_DIR: ${{ github.workspace }}/DoEventsWEB
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          DSF_DESIGN_FIDELITY: "1"
           AGENT_BRANCH: ${{ needs.prepare.outputs.web_branch }}
           WEB_PAT: ${{ secrets.DOEVENTS_WEB_PAT }}
         run: |
@@ -421,12 +422,16 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${WEB_PAT}@github.com/${{ needs.prepare.outputs.web_repo }}.git"
           git fetch origin "$WEB_BRANCH"
-          git pull --rebase origin "$WEB_BRANCH" || git merge "origin/$WEB_BRANCH" -m "merge post-empalme run ${{ github.run_id }}" || true
+          git stash push -u -m "empalme-run-${{ github.run_id }}" || true
+          git checkout "$WEB_BRANCH" 2>/dev/null || git checkout -B "$WEB_BRANCH"
+          git pull --rebase origin "$WEB_BRANCH" || true
+          git stash pop || true
           git add -A
           if git diff --staged --quiet; then
             echo "Sin cambios WEB locales tras empalme (Cursor pudo haber pusheado remoto)"
           else
             git commit -m "feat(dsf): empalme python-first run ${{ github.run_id }} [lovable:${{ needs.prepare.outputs.lovable_sha }}]"
+            git pull --rebase origin "$WEB_BRANCH" || git merge "origin/$WEB_BRANCH" -m "merge post-empalme run ${{ github.run_id }}" || true
             git push origin HEAD:"$WEB_BRANCH"
           fi
 

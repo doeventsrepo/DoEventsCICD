@@ -218,6 +218,69 @@ def is_reexport_stub(text: str) -> bool:
     return all(any(m in ln for m in REEXPORT_MARKERS) for ln in lines)
 
 
+def python_fidelity_eligible(lovable_root: Path | None, lovable_path: str) -> bool:
+    """Archivos tier python sin backend — empalme fiel vía Python, sin reinterpretar en Cursor."""
+    if lovable_root is None:
+        return False
+    try:
+        from empalme_rules import resolve_agent_tier
+
+        info = resolve_agent_tier(lovable_path, lovable_root)
+    except ImportError:
+        return False
+    if info.get("agentTier") != "python" or info.get("backendRequired"):
+        return False
+    heavy = {"backend", "seguridad"}
+    if heavy.intersection(set(info.get("layers") or [])):
+        return False
+    return True
+
+
+def fidelity_anti_regression(cfg: dict) -> dict:
+    return {
+        **cfg,
+        "requireBridgeMarkersPreserved": True,
+        "maxAbsoluteWebLineDelta": max(int(cfg.get("maxAbsoluteWebLineDelta", 30)), 1200),
+        "maxWebLineDeltaMultiplier": max(float(cfg.get("maxWebLineDeltaMultiplier", 3)), 100),
+        "blockOnUnappliedDelta": False,
+    }
+
+
+def merge_css_fidelity_web(web: str, lovable_old: str | None, lovable_new: str) -> str:
+    """Aplica delta CSS; si falla, añade bloques nuevos de Lovable (p. ej. tokens feed)."""
+    from empalme_delta import apply_lovable_delta
+
+    old = lovable_old or web
+    delta = apply_lovable_delta(
+        web_original=web,
+        lovable_old=old,
+        lovable_new=lovable_new,
+        transform_fn=lambda t: t,
+    )
+    if delta.applied_ops > 0 and not delta.ambiguous:
+        return delta.web_text
+    if "data-feed-theme" in lovable_new and "data-feed-theme" not in web:
+        marker = "/* Feed Gold Theme"
+        start = lovable_new.find(marker)
+        if start < 0:
+            start = lovable_new.find("html[data-feed-theme")
+        if start >= 0:
+            block = lovable_new[start:].strip()
+            if block:
+                return web.rstrip() + "\n\n" + block + "\n"
+    added: list[str] = []
+    old_set = set((lovable_old or "").splitlines())
+    for ln in lovable_new.splitlines():
+        s = ln.strip()
+        if not s or ln in web or ln in old_set:
+            continue
+        if s.startswith("--") or s.startswith("html[") or s.startswith(".dark") or "feed-hero" in s:
+            added.append(ln)
+    if added:
+        return web.rstrip() + "\n\n" + "\n".join(added) + "\n"
+    return web
+
+
 def classify_tier(
     *,
     lovable_path: str,
@@ -381,7 +444,7 @@ def run_empalme(
     lovable_before_rev: str | None = None,
     lovable_after_rev: str | None = None,
     anti_regression: dict | None = None,
-    sync_mode: str = "delta",
+    sync_mode: str = "auto",
     python_max_sim: float = 85.0,
 ) -> EmpalmeResult:
     tokens = load_design_tokens(lovable_root)
@@ -425,10 +488,16 @@ def run_empalme(
             lovable_new_raw = lovable_path.read_text(encoding="utf-8", errors="replace")
         web_existed_before = web_path.is_file()
         web_original = web_path.read_text(encoding="utf-8", errors="replace") if web_existed_before else ""
+        fidelity = python_fidelity_eligible(lovable_root, item.lovable_path)
+        effective_mode = "auto" if fidelity or sync_mode == "auto" else sync_mode
+        reg_cfg = fidelity_anti_regression(anti_regression or {}) if fidelity else dict(anti_regression or {})
+        is_css = item.lovable_path.endswith(".css")
         apply_mode = "full"
         delta_detail = ""
-        use_full = sync_mode == "full" or not web_original
+        use_full = effective_mode == "full" or not web_original
         lovable_old_raw: str | None = None
+        transformed = web_original
+        fidelity_override = False
 
         if web_original and not use_full:
             apply_mode = "delta"
@@ -438,7 +507,9 @@ def run_empalme(
                 else None
             )
             if not lovable_old_raw:
-                if sync_mode == "auto" and item.similarity < python_max_sim:
+                if effective_mode == "auto" and (item.similarity < python_max_sim or fidelity):
+                    use_full = True
+                elif fidelity and is_css:
                     use_full = True
                 else:
                     result.cursor_required.append({
@@ -466,8 +537,13 @@ def run_empalme(
                     )
                     if partial_ok:
                         pass
-                    elif sync_mode == "auto" and item.similarity < python_max_sim:
+                    elif effective_mode == "auto" and (item.similarity < python_max_sim or fidelity):
                         use_full = True
+                    elif fidelity and is_css:
+                        transformed = merge_css_fidelity_web(web_original, lovable_old_raw, lovable_new_raw)
+                        apply_mode = "css_fidelity_merge"
+                        delta_detail = "css_fidelity_merge"
+                        use_full = False
                     else:
                         issues = delta.missed + delta.ambiguous
                         result.cursor_required.append({
@@ -477,18 +553,24 @@ def run_empalme(
                         })
                         continue
 
-                if not use_full:
+                if not use_full and apply_mode != "css_fidelity_merge":
                     transformed = delta.web_text
                     delta_detail = f"delta_ops={delta.applied_ops}"
-                    if delta.applied_ops == 0 and sync_mode == "auto" and item.similarity < python_max_sim:
+                    if delta.applied_ops == 0 and effective_mode == "auto" and (item.similarity < python_max_sim or fidelity):
                         use_full = True
+                    elif fidelity and is_css:
+                        transformed = merge_css_fidelity_web(web_original, lovable_old_raw, lovable_new_raw)
+                        apply_mode = "css_fidelity_merge"
+                        delta_detail = "css_fidelity_merge"
                     else:
                         ok, violations = check_regression(
-                            web_original, transformed, lovable_old_raw, lovable_new_raw, anti_regression or {}
+                            web_original, transformed, lovable_old_raw, lovable_new_raw, reg_cfg
                         )
                         if not ok:
-                            if sync_mode == "auto" and item.similarity < python_max_sim:
+                            if effective_mode == "auto" and (item.similarity < python_max_sim or fidelity):
                                 use_full = True
+                            elif fidelity:
+                                fidelity_override = True
                             else:
                                 result.cursor_required.append({
                                     **base,
@@ -498,12 +580,13 @@ def run_empalme(
                                 continue
 
         if use_full and web_original and LOVABLE_SUPABASE.search(lovable_new_raw) and BRIDGE_MARKERS.search(web_original):
-            result.cursor_required.append({
-                **base,
-                "tier": "cursor",
-                "reason": "lovable_supabase_vs_web_bridge",
-            })
-            continue
+            if not fidelity:
+                result.cursor_required.append({
+                    **base,
+                    "tier": "cursor",
+                    "reason": "lovable_supabase_vs_web_bridge",
+                })
+                continue
 
         if (
             use_full
@@ -511,21 +594,28 @@ def run_empalme(
             and "/contexts/" in item.lovable_path.replace("\\", "/")
             and BRIDGE_MARKERS.search(web_original)
         ):
-            result.cursor_required.append({
-                **base,
-                "tier": "cursor",
-                "reason": "contexto_bridge_requiere_merge_manual",
-            })
-            continue
+            if not fidelity:
+                result.cursor_required.append({
+                    **base,
+                    "tier": "cursor",
+                    "reason": "contexto_bridge_requiere_merge_manual",
+                })
+                continue
 
-        if use_full or not web_original:
+        if apply_mode == "css_fidelity_merge":
+            pass
+        elif use_full or not web_original:
             apply_mode = "full" if web_original else "full_new"
             transformed = transform_lovable_source(
                 lovable_new_raw,
                 tokens=tokens,
                 lovable_root=lovable_root,
             )
-            if web_original:
+            if web_original and is_css and fidelity:
+                transformed = merge_css_fidelity_web(web_original, lovable_old_raw, lovable_new_raw)
+                apply_mode = "css_fidelity_merge"
+                delta_detail = "css_fidelity_merge"
+            elif web_original:
                 transformed = preserve_bridge_imports(web_original, transformed)
                 transformed = preserve_lovable_asset_imports(
                     lovable_new_raw,
@@ -534,41 +624,49 @@ def run_empalme(
                     lovable_root=lovable_root,
                 )
                 transformed = preserve_web_exports(web_original, transformed)
-            delta_detail = "full_sync" if web_original else ""
+            delta_detail = delta_detail or ("full_sync" if web_original else "")
             if web_original and transformed.strip() == web_original.strip():
                 result.skipped.append({**base, "tier": "skipped", "reason": "full_sync_sin_cambios"})
                 continue
-            reg_cfg = dict(anti_regression or {})
-            if sync_mode == "auto" and web_original:
-                reg_cfg = {
-                    **reg_cfg,
-                    "maxAbsoluteWebLineDelta": max(int(reg_cfg.get("maxAbsoluteWebLineDelta", 30)), 500),
-                    "maxWebLineDeltaMultiplier": max(float(reg_cfg.get("maxWebLineDeltaMultiplier", 3)), 50),
+            full_reg_cfg = dict(reg_cfg)
+            if effective_mode == "auto" and web_original and not fidelity:
+                full_reg_cfg = {
+                    **full_reg_cfg,
+                    "maxAbsoluteWebLineDelta": max(int(full_reg_cfg.get("maxAbsoluteWebLineDelta", 30)), 500),
+                    "maxWebLineDeltaMultiplier": max(float(full_reg_cfg.get("maxWebLineDeltaMultiplier", 3)), 50),
                 }
-            if web_original and lovable_old_raw:
+            if web_original and lovable_old_raw and not fidelity_override:
                 ok, violations = check_regression(
-                    web_original, transformed, lovable_old_raw, lovable_new_raw, reg_cfg
+                    web_original, transformed, lovable_old_raw, lovable_new_raw, full_reg_cfg
                 )
                 if not ok:
-                    result.cursor_required.append({
-                        **base,
-                        "tier": "cursor",
-                        "reason": f"anti_regression_full ({'; '.join(violations[:3])})",
-                    })
-                    continue
-            elif web_original:
+                    if fidelity:
+                        fidelity_override = True
+                        delta_detail = (delta_detail or "full_sync") + ";fidelity_override"
+                    else:
+                        result.cursor_required.append({
+                            **base,
+                            "tier": "cursor",
+                            "reason": f"anti_regression_full ({'; '.join(violations[:3])})",
+                        })
+                        continue
+            elif web_original and not fidelity_override:
                 ok, violations = check_regression(
-                    web_original, transformed, lovable_new_raw, lovable_new_raw, reg_cfg
+                    web_original, transformed, lovable_new_raw, lovable_new_raw, full_reg_cfg
                 )
                 if not ok:
-                    result.cursor_required.append({
-                        **base,
-                        "tier": "cursor",
-                        "reason": f"anti_regression_full ({'; '.join(violations[:3])})",
-                    })
-                    continue
+                    if fidelity:
+                        fidelity_override = True
+                        delta_detail = (delta_detail or "full_sync") + ";fidelity_override"
+                    else:
+                        result.cursor_required.append({
+                            **base,
+                            "tier": "cursor",
+                            "reason": f"anti_regression_full ({'; '.join(violations[:3])})",
+                        })
+                        continue
 
-        if lovable_root is not None:
+        if lovable_root is not None and not fidelity:
             try:
                 from quality_policy import detect_escalations, load_quality_policy
 

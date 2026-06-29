@@ -125,6 +125,12 @@ def main() -> int:
 Implementa **TODOS** los gaps listados en gap-manifest.json para este batch.
 Objetivo: cada ítem queda `DONE` en frontend o `BACKEND_REQUIRED` documentado.
 
+## Fidelidad visual DSF (obligatorio cuando DSF_DESIGN_FIDELITY=1)
+- **Preservar** el diseño Lovable: labels, toggles, colores, gradientes, variables CSS (`--*`), `data-*` theme attrs.
+- **Prohibido reinterpretar** UX (ej. cambiar tema dorado por claro/oscuro, cambiar copy o iconografía).
+- Solo adaptar: imports `@/` → `@lovable/`, quitar mocks/supabase, conservar bridge/API existente en WEB.
+- Para archivos nuevos en Lovable: crear equivalente WEB con misma UI visible que Lovable tras transform de imports.
+
 ## Métricas actuales
 - Similitud global: {gap_manifest.get('beforeSimilarityPercent', 0)}% (objetivo {gap_manifest.get('targetSimilarityPercent', 98)}%)
 - Gaps totales pendientes: {gap_manifest.get('totalPendingGaps', 0)}
@@ -139,9 +145,10 @@ Objetivo: cada ítem queda `DONE` en frontend o `BACKEND_REQUIRED` documentado.
 6. Push a rama `{branch}` únicamente
 
 ## PROHIBIDO
-- Copy-paste literal desde Lovable
+- Copy-paste literal de mocks/supabase desde Lovable
 - Mocks en runtime
 - Ramas feature/lovable/adapt-*
+- Reinterpretar diseño visual respecto a Lovable (ver fidelidad DSF arriba)
 
 ## Reglas completas
 {rules_content}

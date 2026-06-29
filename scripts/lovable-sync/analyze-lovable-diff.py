@@ -46,6 +46,16 @@ def resolve_before(cwd: Path, before: str) -> str:
 
 def last_synced_lovable_sha(web: Path) -> str | None:
     branch = os.environ.get("CICD_WEB_BRANCH", "feature/cicd/dev-automation")
+    cambios = web / "ReglasAgente" / "cambios-lovable.json"
+    if cambios.is_file():
+        try:
+            data = json.loads(cambios.read_text(encoding="utf-8"))
+            for run in reversed(data.get("runs") or []):
+                sha = str(run.get("lovableSha") or "").strip()
+                if sha:
+                    return sha
+        except Exception:
+            pass
     try:
         out = git(["log", "-30", "--format=%s", branch], web)
     except subprocess.CalledProcessError:
@@ -96,16 +106,36 @@ def main() -> int:
 
     diff = git(["diff", "--name-status", before, after], root)
     files: list[dict] = []
+    seen_paths: set[str] = set()
+
+    def add_file(status: str, path: str, *, source: str = "commit") -> None:
+        if path in seen_paths:
+            return
+        if not any(path.startswith(p) or path == p.rstrip("/") for p in WATCH_PREFIXES):
+            return
+        seen_paths.add(path)
+        files.append({"status": status, "path": path, "kind": classify(path), "source": source})
+
     for line in diff.splitlines():
         if not line.strip():
             continue
         parts = line.split("\t")
         if len(parts) < 2:
             continue
-        status, path = parts[0], parts[-1]
-        if not any(path.startswith(p) or path == p.rstrip("/") for p in WATCH_PREFIXES):
-            continue
-        files.append({"status": status, "path": path, "kind": classify(path)})
+        add_file(parts[0], parts[-1], source="commit")
+
+    # Cambios sin commit (working tree) — simulaciones locales y diseño Lovable pre-push
+    try:
+        wt = git(["diff", "--name-status", "HEAD"], root)
+        for line in wt.splitlines():
+            if not line.strip():
+                continue
+            parts = line.split("\t")
+            if len(parts) < 2:
+                continue
+            add_file(parts[0], parts[-1], source="working-tree")
+    except subprocess.CalledProcessError:
+        pass
 
     sha = git(["rev-parse", after], root)
     before_sha = git(["rev-parse", before], root)

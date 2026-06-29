@@ -39,6 +39,18 @@ def load_changed_paths(manifest: dict) -> list[str]:
     return [f["path"] for f in manifest.get("changedFiles", []) if f.get("kind") == "ui"]
 
 
+def _load_sync_mode() -> str:
+    cfg_path = Path(__file__).resolve().parents[2] / "cicd.config.json"
+    if cfg_path.is_file():
+        try:
+            data = json.loads(cfg_path.read_text(encoding="utf-8"))
+            strategy = (data.get("dsf") or {}).get("empalmeStrategy") or {}
+            return str(strategy.get("syncMode") or "auto")
+        except Exception:
+            pass
+    return "auto"
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="DSF — Agente Python empalme (sin API)")
     parser.add_argument("--lovable-dir", required=True)
@@ -113,6 +125,8 @@ def main() -> int:
         lovable_before_rev=lovable_before_rev,
         lovable_after_rev=lovable_after_rev,
         anti_regression=anti_regression,
+        sync_mode=_load_sync_mode(),
+        python_max_sim=args.python_max_sim,
     )
 
     payload = {

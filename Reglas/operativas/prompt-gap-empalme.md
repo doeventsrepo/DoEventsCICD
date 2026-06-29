@@ -11,6 +11,7 @@ Implementar **solo** los gaps del batch actual (similitud <98% o ausentes en WEB
 ```text
 Cada gap del manifiesto debe quedar en estado DONE (frontend) o BACKEND_REQUIRED (documentado).
 Nunca inventar datos ni endpoints.
+Fidelidad visual: preservar diseño Lovable (colores, toggles, CSS vars, copy) — solo adaptar imports y quitar mocks.
 ```
 
 ## Proceso obligatorio por gap

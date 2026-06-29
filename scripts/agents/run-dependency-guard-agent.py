@@ -18,6 +18,13 @@ from agent_base import artifacts_dir, gh_output, write_report
 
 IMPORT_RE = re.compile(r'''from\s+['"]([^./][^'"]+)['"]|import\s+['"]([^./][^'"]+)['"]''')
 
+# Alias de paths del proyecto Lovable/WEB — no son paquetes npm.
+PATH_ALIAS_PREFIXES = ("@/", "@lovable/", "@doevents/")
+
+
+def is_path_alias(module: str) -> bool:
+    return any(module.startswith(p) for p in PATH_ALIAS_PREFIXES)
+
 
 def scan_imports(root: Path, ui_paths: list[str]) -> list[str]:
     packages: set[str] = set()
@@ -28,6 +35,8 @@ def scan_imports(root: Path, ui_paths: list[str]) -> list[str]:
         text = path.read_text(encoding="utf-8", errors="replace")
         for m in IMPORT_RE.finditer(text):
             pkg = m.group(1) or m.group(2)
+            if not pkg or is_path_alias(pkg):
+                continue
             if pkg and not pkg.startswith("@"):
                 packages.add(pkg.split("/")[0])
             elif pkg and pkg.startswith("@"):

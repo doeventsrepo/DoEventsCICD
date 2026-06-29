@@ -47,9 +47,16 @@ def main() -> int:
 
     data = json.loads(result_path.read_text(encoding="utf-8"))
     cursor_items = data.get("cursorRequired") or []
+    # delta_incompleto = Python no pudo aplicar el parche (p. ej. archivo ya adaptado en bridge).
+    # Eso es escalación normal a Cursor, no una regresión — no bloquear antes del fallback.
     regression_items = [
         c for c in cursor_items
-        if "anti_regression" in c.get("reason", "") or "delta_incompleto" in c.get("reason", "")
+        if "anti_regression" in c.get("reason", "")
+    ]
+    incomplete_escalations = [
+        c for c in cursor_items
+        if "delta_incompleto" in c.get("reason", "")
+        and "anti_regression" not in c.get("reason", "")
     ]
     applied = data.get("applied") or []
     delta_applied = [a for a in applied if a.get("applyMode") == "delta"]
@@ -84,6 +91,7 @@ def main() -> int:
         "deltaAppliedCount": len(delta_applied),
         "fullAppliedCount": len(full_applied),
         "regressionEscalations": len(regression_items),
+        "cursorEscalations": len(incomplete_escalations),
         "violations": violations,
     }
     write_report(f"anti-regression-guard-{args.run_id}.json", out, args.run_id)

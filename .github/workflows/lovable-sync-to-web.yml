@@ -1,4 +1,4 @@
-# Alias retrocompatible — delega a DSF Sync DEV
+# Punto de entrada único para repository_dispatch desde Lovable → delega a DSF Sync DEV
 name: Lovable Sync to WEB (DEV)
 
 on:
@@ -19,13 +19,17 @@ on:
         type: choice
         options: ['true', 'false']
       run_gap_empalme_after:
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+      cursor_fallback:
         default: 'true'
         type: choice
         options: ['true', 'false']
       web_cicd_branch:
         default: feature/cicd/dev-automation
   repository_dispatch:
-    types: [lovable-sync]
+    types: [lovable-sync, dsf-sync]
   workflow_call:
     inputs:
       run_agent:
@@ -48,10 +52,12 @@ jobs:
   dsf-sync:
     uses: ./.github/workflows/dsf-sync-dev.yml
     with:
-      run_agent: ${{ inputs.run_agent || 'true' }}
-      agent_mode: ${{ inputs.agent_mode || 'frontend-only' }}
-      lovable_ref: ${{ inputs.lovable_ref || 'main' }}
-      deploy_dev_after: ${{ inputs.deploy_dev_after || 'true' }}
-      run_gap_loop: ${{ inputs.run_gap_empalme_after || 'false' }}
-      web_cicd_branch: ${{ inputs.web_cicd_branch || 'feature/cicd/dev-automation' }}
+      run_agent: ${{ github.event.client_payload.run_agent || inputs.run_agent || 'true' }}
+      agent_mode: ${{ github.event.client_payload.agent_mode || inputs.agent_mode || 'frontend-only' }}
+      lovable_ref: ${{ github.event.client_payload.ref || inputs.lovable_ref || 'main' }}
+      deploy_dev_after: ${{ github.event.client_payload.deploy_dev_after || inputs.deploy_dev_after || 'true' }}
+      run_gap_loop: ${{ github.event.client_payload.run_gap_loop || inputs.run_gap_empalme_after || 'false' }}
+      cursor_fallback: ${{ github.event.client_payload.cursor_fallback || inputs.cursor_fallback || 'true' }}
+      web_cicd_branch: ${{ github.event.client_payload.web_cicd_branch || inputs.web_cicd_branch || 'feature/cicd/dev-automation' }}
+      app_id: ${{ github.event.client_payload.app_id || 'doevents' }}
     secrets: inherit

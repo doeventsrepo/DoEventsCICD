@@ -90,8 +90,7 @@ def main() -> int:
         resolved.append(entry)
 
     dupes = detect_duplicates(lovable, ui_paths)
-    if dupes:
-        blocked = True
+    # Heurística de nombres duplicados: aviso informativo, no bloquea el sync (evita falsos positivos index.css/Index.tsx)
 
     result = {
         "runId": args.run_id,
@@ -99,8 +98,8 @@ def main() -> int:
         "blockedCount": sum(1 for r in resolved if r.get("riskLevel") == "blocked"),
         "duplicateWarnings": dupes,
         "entries": resolved,
-        "riskLevel": "blocked" if blocked else "low",
-        "requiresManualReview": blocked,
+        "riskLevel": "blocked" if blocked else ("medium" if dupes else "low"),
+        "requiresManualReview": blocked or bool(dupes),
     }
 
     out = artifacts_dir(args.run_id) / f"port-map-resolver-{args.run_id}.json"

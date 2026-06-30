@@ -39,8 +39,7 @@ on:
         description: ID aplicación (applications.registry en cicd.config.json)
         default: doevents
         type: string
-  repository_dispatch:
-    types: [lovable-sync, dsf-sync]
+  # repository_dispatch solo en lovable-sync-to-web.yml (evita doble ejecución por push Lovable)
   workflow_call:
     inputs:
       run_agent:

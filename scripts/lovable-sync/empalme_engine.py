@@ -23,6 +23,8 @@ BACKEND_HINTS = re.compile(
 )
 BRIDGE_MARKERS = re.compile(r"lovable-bridge|@doevents/shared|useApi|api-dev\.doeventsapp", re.I)
 LOVABLE_SUPABASE = re.compile(r"integrations/supabase|supabase\.", re.I)
+# Componentes que Index Lovable incluye pero el muro WEB (SocialWallTab) no debe recibir vía parche automático.
+BRIDGE_WALL_DENY_COMPONENTS = frozenset({"FeedBanner"})
 
 
 @dataclass
@@ -344,6 +346,8 @@ def patch_bridge_wall_page(web: str, lovable_old: str, lovable_new: str) -> str 
         jsx_match = re.match(r"<\s*(\w+)(?:\s[^>]*)?\s*/>", stripped)
         if jsx_match:
             comp_name = jsx_match.group(1)
+            if comp_name in BRIDGE_WALL_DENY_COMPONENTS:
+                continue
             if re.search(rf"<\s*{comp_name}\b", result):
                 continue
             anchor = re.search(

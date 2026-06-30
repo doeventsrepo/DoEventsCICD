@@ -22,8 +22,11 @@ def detect_duplicates(lovable_root: Path, paths: list[str]) -> list[dict]:
     suspicious = ("V2", "New", "Final", "Copy", "Lovable", "Temp")
     by_stem: dict[str, list[str]] = {}
     for rel in paths:
-        stem = Path(rel).stem
-        by_stem.setdefault(stem.lower(), []).append(rel)
+        p = Path(rel)
+        stem = p.stem
+        # Agrupar por carpeta + stem (evita falso positivo index.css vs pages/Index.tsx)
+        key = f"{p.parent.as_posix().lower()}::{stem.lower()}"
+        by_stem.setdefault(key, []).append(rel)
         for suf in suspicious:
             if suf.lower() in stem.lower():
                 dupes.append({"lovablePath": rel, "reason": f"suspicious_name:{suf}", "duplicateRisk": True})

@@ -55,6 +55,7 @@ def main() -> int:
     after = manifest.get("after", manifest.get("lovableSha", "HEAD"))
     before, after = normalize_refs(lovable, before, after, manifest.get("lovableSha"))
     changed = manifest.get("changedFiles", [])
+    design_intent = manifest.get("designIntent") or {}
 
     sections: list[str] = [
         "# Contexto de sincronizacion Lovable -> DoEventsWEB",
@@ -65,6 +66,20 @@ def main() -> int:
         f"- Cambios reglas: {manifest.get('hasRulesChanges', False)}",
         "",
     ]
+
+    if design_intent.get("userPrompt"):
+        sections.extend([
+            "## Intención del cambio (DCR)",
+            "",
+            f"**Prompt / commit:** {design_intent.get('userPrompt', '')}",
+            "",
+        ])
+        criteria = design_intent.get("acceptanceCriteria") or []
+        if criteria:
+            sections.append("**Criterios de aceptación:**")
+            for c in criteria:
+                sections.append(f"- {c}")
+            sections.append("")
 
     rules_files = [f for f in changed if f.get("kind") == "rules" or str(f.get("path", "")).startswith("reglasActuacion/")]
     design_rules = [f for f in changed if f.get("kind") == "design-rules" or str(f.get("path", "")).startswith("reglasDiseno/")]

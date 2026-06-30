@@ -1,4 +1,5 @@
-# Punto de entrada único para repository_dispatch desde Lovable → delega a DSF Sync DEV
+# Punto de entrada único para repository_dispatch desde Lovable → DSF Sync DEV
+# Reintento automático (syncAttempts: 2 en cicd.config.json → dsf.reliability)
 name: Lovable Sync to WEB (DEV)
 
 on:
@@ -49,7 +50,30 @@ on:
         default: feature/cicd/dev-automation
 
 jobs:
-  dsf-sync:
+  sync-attempt-1:
+    uses: ./.github/workflows/dsf-sync-dev.yml
+    with:
+      run_agent: ${{ github.event.client_payload.run_agent || inputs.run_agent || 'true' }}
+      agent_mode: ${{ github.event.client_payload.agent_mode || inputs.agent_mode || 'frontend-only' }}
+      lovable_ref: ${{ github.event.client_payload.ref || inputs.lovable_ref || 'main' }}
+      deploy_dev_after: ${{ github.event.client_payload.deploy_dev_after || inputs.deploy_dev_after || 'true' }}
+      run_gap_loop: ${{ github.event.client_payload.run_gap_loop || inputs.run_gap_empalme_after || 'false' }}
+      cursor_fallback: ${{ github.event.client_payload.cursor_fallback || inputs.cursor_fallback || 'true' }}
+      web_cicd_branch: ${{ github.event.client_payload.web_cicd_branch || inputs.web_cicd_branch || 'feature/cicd/dev-automation' }}
+      app_id: ${{ github.event.client_payload.app_id || 'doevents' }}
+    secrets: inherit
+
+  wait-before-retry:
+    needs: sync-attempt-1
+    if: failure() && needs.sync-attempt-1.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Esperar antes de reintento (dsf.reliability.retryDelaySeconds)
+        run: sleep 60
+
+  sync-attempt-2:
+    needs: [sync-attempt-1, wait-before-retry]
+    if: failure() && needs.sync-attempt-1.result == 'failure'
     uses: ./.github/workflows/dsf-sync-dev.yml
     with:
       run_agent: ${{ github.event.client_payload.run_agent || inputs.run_agent || 'true' }}

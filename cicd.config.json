@@ -213,6 +213,33 @@
       "manualToken": "DEPLOY_QA_MANUAL",
       "targetBranch": "develop"
     },
+    "reliability": {
+      "version": "1.0",
+      "syncAttempts": 2,
+      "retryDelaySeconds": 60,
+      "gates": {
+        "portMapDuplicateHeuristicBlocks": false,
+        "bridgeCanaryRequired": true,
+        "postEmpalmeBuildRequired": true,
+        "postEmpalmeIntegrityRequired": true,
+        "smokeRequired": true,
+        "maxDesignGapInjectionsPerRun": 6,
+        "skipDesignGapOnRulesOnlyPush": true,
+        "maxBridgePageLineDelta": 400
+      },
+      "denyAutoComponentsOnBridgePages": ["FeedBanner"],
+      "bridgePageInsertAnchors": ["FeedServicesCarousel", "FeedVenuesCarousel"],
+      "bridgePages": [
+        {
+          "lovablePath": "src/pages/Index.tsx",
+          "webPath": "packages/shell/src/pages/SocialWallTab.tsx",
+          "compareMode": "bridge",
+          "denyAutoComponents": ["FeedBanner"],
+          "insertAfterComponents": ["FeedServicesCarousel", "FeedVenuesCarousel"]
+        }
+      ],
+      "note": "DSF Reliability v1 — reintentos, bridge pages, design-gap acotado. Override por app en applications.registry.<id>.reliability"
+    },
     "artifactPromotion": {
       "enabled": false,
       "note": "Infraestructura lista; promoción QA deshabilitada por qaPromotion.enabled=false",

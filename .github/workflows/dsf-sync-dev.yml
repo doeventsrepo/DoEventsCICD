@@ -227,6 +227,14 @@ jobs:
           echo "sha=$LOVABLE_SHA" >> "$GITHUB_OUTPUT"
           echo "has_changes=$HAS" >> "$GITHUB_OUTPUT"
 
+      - name: Design intent (DCR)
+        run: |
+          mkdir -p cicd/artifacts-pre
+          python3 cicd/scripts/lovable-sync/build-design-intent.py \
+            lovable cicd/lovable-change-manifest.json \
+            cicd/artifacts-pre/design-intent.json
+          cp cicd/lovable-change-manifest.json cicd/artifacts-pre/lovable-change-manifest.json
+
       - name: Diff intelligence (agente 0)
         run: |
           python3 cicd/scripts/agents/run-diff-intelligence-agent.py \
@@ -313,6 +321,7 @@ jobs:
             cicd/design-comparison.json
             cicd/lovable-change-manifest.json
             cicd/port-map-result.json
+            cicd/artifacts-pre/design-intent.json
             cicd/Reports/*-design-pre-*.md
 
       - name: Commit ReglasAgente
@@ -435,6 +444,17 @@ jobs:
             git pull --rebase origin "$WEB_BRANCH" || git merge "origin/$WEB_BRANCH" -m "merge post-empalme run ${{ github.run_id }}" || true
             git push origin HEAD:"$WEB_BRANCH"
           fi
+
+      - name: Gate G2 — Integridad empalme (bridge)
+        if: steps.empalme_python.outcome == 'success'
+        run: |
+          python3 cicd/scripts/lovable-sync/validate-empalme-integrity.py \
+            --web-dir DoEventsWEB \
+            --manifest cicd/artifacts-pre/lovable-change-manifest.json \
+            --port-map DoEventsWEB/.lovable-port-map.json \
+            --cicd-dir cicd \
+            --app-id ${{ needs.prepare.outputs.app_id || 'doevents' }} \
+            --blocking true
 
       - name: Gate G3 — Anti-mocks
         if: steps.empalme_python.outcome == 'success'

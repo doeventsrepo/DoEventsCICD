@@ -90,7 +90,14 @@ def main() -> int:
         resolved.append(entry)
 
     dupes = detect_duplicates(lovable, ui_paths)
-    # Heurística de nombres duplicados: aviso informativo, no bloquea el sync (evita falsos positivos index.css/Index.tsx)
+    try:
+        from dsf.reliability import gate, load_reliability
+
+        rel = load_reliability(Path(__file__).resolve().parents[2])
+        if dupes and gate(rel, "portMapDuplicateHeuristicBlocks", False):
+            blocked = True
+    except ImportError:
+        pass
 
     result = {
         "runId": args.run_id,

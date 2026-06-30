@@ -49,7 +49,24 @@ def main() -> int:
             for f in manifest.get("changedFiles") or []
             if f.get("kind") == "ui" and f.get("source") != "design-gap"
         }
+        rules_only = bool(manifest.get("hasRulesChanges") and not manifest.get("hasUiChanges"))
+        try:
+            from dsf.reliability import gate, load_reliability
+
+            rel = load_reliability(cicd_dir)
+            max_inject = int((rel.get("gates") or {}).get("maxDesignGapInjectionsPerRun") or 6)
+            if rules_only and gate(rel, "skipDesignGapOnRulesOnlyPush", True):
+                manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                if len(sys.argv) > 3:
+                    Path(sys.argv[3]).write_text(manifest_path.read_text(encoding="utf-8"), encoding="utf-8")
+                print(json.dumps({"requiresAgent": manifest.get("requiresAgent"), "designGapSkipped": "rules-only"}))
+                return 0
+        except ImportError:
+            max_inject = 6
+
         for item in design.get("lowSimilarity") or []:
+            if injected >= max_inject:
+                break
             lp = str(item.get("lovablePath") or "").strip()
             pct = float(item.get("similarityPercent") or 100)
             if not lp or lp in existing:
@@ -71,6 +88,8 @@ def main() -> int:
             existing.add(lp)
             injected += 1
         for lp in design.get("missingInWeb") or []:
+            if injected >= max_inject:
+                break
             lp = str(lp).strip()
             if not lp or lp in existing:
                 continue

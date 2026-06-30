@@ -30,5 +30,36 @@
   "dsf": {
     "qaPromotionBlocked": true,
     "note": "Copiar este bloque a cicd.config.json → applications.registry.<app_id>"
+  },
+  "appStack": {
+    "validateBeforeAutomation": true,
+    "autoBootstrap": true,
+    "requirements": {
+      "design": { "dsfStructure": true },
+      "frontend": {
+        "packageJson": true,
+        "lovableDir": true,
+        "bridgeDir": true,
+        "portMap": true,
+        "reglasAgente": true
+      },
+      "backend": {
+        "optional": true,
+        "note": "true si la app aún no tiene backend propio"
+      }
+    }
+  },
+  "reliability": {
+    "syncAttempts": 2,
+    "bridgePages": [
+      {
+        "lovablePath": "src/pages/Index.tsx",
+        "webPath": "packages/shell/src/pages/HomePage.tsx",
+        "compareMode": "bridge",
+        "denyAutoComponents": [],
+        "insertAfterComponents": ["FeedServicesCarousel"]
+      }
+    ],
+    "note": "Adaptar bridgePages y webPath por app. Hereda defaults de dsf.reliability en cicd.config.json"
   }
 }

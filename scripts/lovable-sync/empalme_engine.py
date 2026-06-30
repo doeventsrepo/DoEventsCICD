@@ -1,6 +1,7 @@
 """Motor determinista de empalme Lovable → DoEventsWEB (sin Cursor API)."""
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -23,8 +24,27 @@ BACKEND_HINTS = re.compile(
 )
 BRIDGE_MARKERS = re.compile(r"lovable-bridge|@doevents/shared|useApi|api-dev\.doeventsapp", re.I)
 LOVABLE_SUPABASE = re.compile(r"integrations/supabase|supabase\.", re.I)
-# Componentes que Index Lovable incluye pero el muro WEB (SocialWallTab) no debe recibir vía parche automático.
-BRIDGE_WALL_DENY_COMPONENTS = frozenset({"FeedBanner"})
+
+
+def _reliability_policy() -> dict[str, Any]:
+    try:
+        cicd = Path(os.environ.get("CICD_DIR", ""))
+        if not cicd.is_dir():
+            cicd = Path(__file__).resolve().parents[2]
+        from dsf.reliability import load_reliability
+
+        return load_reliability(cicd)
+    except Exception:
+        return {}
+
+
+def _bridge_wall_deny_components() -> frozenset[str]:
+    try:
+        from dsf.reliability import deny_auto_components
+
+        return deny_auto_components(_reliability_policy())
+    except Exception:
+        return frozenset({"FeedBanner"})
 
 
 @dataclass
@@ -322,11 +342,20 @@ def _rewrite_lovable_import_line(line: str) -> str:
     )
 
 
-def patch_bridge_wall_page(web: str, lovable_old: str, lovable_new: str) -> str | None:
-    """Parche quirúrgico cuando Index Lovable mapea a SocialWallTab (páginas bridge distintas)."""
+def patch_bridge_wall_page(web: str, lovable_old: str, lovable_new: str, *, lovable_path: str = "") -> str | None:
+    """Parche quirúrgico cuando Index Lovable mapea a página bridge WEB."""
     added = _lovable_lines_added(lovable_old, lovable_new)
     if not added:
         return None
+
+    policy = _reliability_policy()
+    deny = _bridge_wall_deny_components()
+    try:
+        from dsf.reliability import insert_anchors_for_bridge
+
+        anchors = insert_anchors_for_bridge(policy, lovable_path)
+    except Exception:
+        anchors = ["FeedServicesCarousel", "FeedVenuesCarousel"]
 
     result = web
     changed = False
@@ -346,19 +375,18 @@ def patch_bridge_wall_page(web: str, lovable_old: str, lovable_new: str) -> str 
         jsx_match = re.match(r"<\s*(\w+)(?:\s[^>]*)?\s*/>", stripped)
         if jsx_match:
             comp_name = jsx_match.group(1)
-            if comp_name in BRIDGE_WALL_DENY_COMPONENTS:
+            if comp_name in deny:
                 continue
             if re.search(rf"<\s*{comp_name}\b", result):
                 continue
-            anchor = re.search(
-                r"(<FeedServicesCarousel\b[\s\S]*?\n\s*/>)",
-                result,
-            )
-            if not anchor:
+            anchor = None
+            for anchor_name in anchors:
                 anchor = re.search(
-                    r"(<FeedVenuesCarousel\b[\s\S]*?\n\s*/>)",
+                    rf"(<{re.escape(anchor_name)}\b[\s\S]*?\n\s*/>)",
                     result,
                 )
+                if anchor:
+                    break
             if anchor:
                 insert_pos = anchor.end()
                 indent = "        "
@@ -653,7 +681,9 @@ def run_empalme(
                     if partial_ok:
                         pass
                     elif bridge_page and lovable_old_raw:
-                        patched = patch_bridge_wall_page(web_original, lovable_old_raw, lovable_new_raw)
+                        patched = patch_bridge_wall_page(
+                            web_original, lovable_old_raw, lovable_new_raw, lovable_path=item.lovable_path,
+                        )
                         if patched and patched.strip() != web_original.strip():
                             transformed = patched
                             apply_mode = "bridge_patch"
@@ -684,7 +714,9 @@ def run_empalme(
                     if delta.applied_ops == 0 and effective_mode == "auto" and (item.similarity < python_max_sim or fidelity) and not bridge_page:
                         use_full = True
                     elif delta.applied_ops == 0 and bridge_page and lovable_old_raw:
-                        patched = patch_bridge_wall_page(web_original, lovable_old_raw, lovable_new_raw)
+                        patched = patch_bridge_wall_page(
+                            web_original, lovable_old_raw, lovable_new_raw, lovable_path=item.lovable_path,
+                        )
                         if patched and patched.strip() != web_original.strip():
                             transformed = patched
                             apply_mode = "bridge_patch"
@@ -704,7 +736,9 @@ def run_empalme(
                             if effective_mode == "auto" and (item.similarity < python_max_sim or fidelity) and not bridge_page:
                                 use_full = True
                             elif bridge_page and lovable_old_raw:
-                                patched = patch_bridge_wall_page(web_original, lovable_old_raw, lovable_new_raw)
+                                patched = patch_bridge_wall_page(
+                            web_original, lovable_old_raw, lovable_new_raw, lovable_path=item.lovable_path,
+                        )
                                 if patched and patched.strip() != web_original.strip():
                                     transformed = patched
                                     apply_mode = "bridge_patch"
@@ -724,7 +758,9 @@ def run_empalme(
 
         if use_full and bridge_page and web_original:
             if lovable_old_raw:
-                patched = patch_bridge_wall_page(web_original, lovable_old_raw, lovable_new_raw)
+                patched = patch_bridge_wall_page(
+                    web_original, lovable_old_raw, lovable_new_raw, lovable_path=item.lovable_path,
+                )
                 if patched and patched.strip() != web_original.strip():
                     transformed = patched
                     apply_mode = "bridge_patch"

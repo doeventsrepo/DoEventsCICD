@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "description": "Defaults DSF Reliability — copiar/adaptar en cicd.config.json → dsf.reliability o applications.registry.<app>.reliability",
+  "syncAttempts": 2,
+  "retryDelaySeconds": 60,
+  "gates": {
+    "portMapDuplicateHeuristicBlocks": false,
+    "bridgeCanaryRequired": true,
+    "postEmpalmeBuildRequired": true,
+    "postEmpalmeIntegrityRequired": true,
+    "smokeRequired": true,
+    "maxDesignGapInjectionsPerRun": 6,
+    "skipDesignGapOnRulesOnlyPush": true,
+    "maxBridgePageLineDelta": 400
+  },
+  "denyAutoComponentsOnBridgePages": ["FeedBanner"],
+  "bridgePageInsertAnchors": ["FeedServicesCarousel", "FeedVenuesCarousel"],
+  "bridgePages": [
+    {
+      "lovablePath": "src/pages/Index.tsx",
+      "webPath": "packages/shell/src/pages/SocialWallTab.tsx",
+      "compareMode": "bridge",
+      "denyAutoComponents": ["FeedBanner"],
+      "insertAfterComponents": ["FeedServicesCarousel", "FeedVenuesCarousel"]
+    }
+  ],
+  "requiredBridgeMarkersInPages": ["@doevents/shared"],
+  "forbiddenPatternsInBridgePages": [
+    "from '@lovable/data/mock",
+    "from \"@lovable/data/mock",
+    "from '@/data/mock"
+  ]
+}

@@ -306,6 +306,60 @@ def merge_css_fidelity_web(web: str, lovable_old: str | None, lovable_new: str) 
     return web
 
 
+def _lovable_lines_added(lovable_old: str, lovable_new: str) -> list[str]:
+    old = set(lovable_old.splitlines())
+    return [ln for ln in lovable_new.splitlines() if ln not in old and ln.strip()]
+
+
+def _rewrite_lovable_import_line(line: str) -> str:
+    return (
+        line.replace("from '@/components/", "from '@lovable/components/")
+        .replace('from "@/components/', "from '@lovable/components/")
+        .replace("from '@/lib/", "from '@lovable/lib/")
+        .replace('from "@/lib/', "from '@lovable/lib/")
+    )
+
+
+def patch_bridge_wall_page(web: str, lovable_old: str, lovable_new: str) -> str | None:
+    """Parche quirúrgico cuando Index Lovable mapea a SocialWallTab (páginas bridge distintas)."""
+    added = _lovable_lines_added(lovable_old, lovable_new)
+    if not added:
+        return None
+
+    result = web
+    changed = False
+
+    for ln in added:
+        stripped = ln.strip()
+        if stripped.startswith("import ") and "/components/feed/" in stripped:
+            bridge_ln = _rewrite_lovable_import_line(stripped)
+            comp = re.search(r"import\s+(\w+)", bridge_ln)
+            if comp and comp.group(1) not in result:
+                lines = result.splitlines()
+                insert_at = _leading_import_end(lines)
+                lines.insert(insert_at, bridge_ln)
+                result = "\n".join(lines) + ("\n" if web.endswith("\n") else "")
+                changed = True
+
+        jsx_match = re.match(r"<\s*(\w+)(?:\s[^>]*)?\s*/>", stripped)
+        if jsx_match:
+            comp_name = jsx_match.group(1)
+            if re.search(rf"<\s*{comp_name}\b", result):
+                continue
+            anchor = re.search(
+                r"(<FeedVenuesCarousel\b[\s\S]*?\n\s*/>)",
+                result,
+            )
+            if anchor:
+                insert_pos = anchor.end()
+                indent = "        "
+                snippet = f"\n\n{indent}<{comp_name} />"
+                result = result[:insert_pos] + snippet + result[insert_pos:]
+                changed = True
+
+    return result if changed else None
+
+
 def classify_tier(
     *,
     lovable_path: str,
@@ -326,6 +380,10 @@ def classify_tier(
         return "skipped", "auth_mfe_delegated"
     if is_reexport_stub(web_src):
         return "skipped", "bridge_reexport_preserved"
+    if compare_mode == "bridge":
+        if web_src and BRIDGE_MARKERS.search(web_src):
+            return "python", "delta_only_bridge_page"
+        return "cursor", "bridge_page_sin_destino_web"
 
     # diff-only: aplicar delta git del manifiesto antes de reglas YAML (p. ej. SeatingMapEditor)
     if force_diff_apply and lovable_path in (force_paths or set()):
@@ -482,6 +540,7 @@ def run_empalme(
 ) -> EmpalmeResult:
     tokens = load_design_tokens(lovable_root)
     result = EmpalmeResult()
+    port_map_items = load_port_map(port_map_path)
 
     for item in targets:
         base = {
@@ -521,6 +580,13 @@ def run_empalme(
             lovable_new_raw = lovable_path.read_text(encoding="utf-8", errors="replace")
         web_existed_before = web_path.is_file()
         web_original = web_path.read_text(encoding="utf-8", errors="replace") if web_existed_before else ""
+        item_meta = mapping_for(item.lovable_path, port_map_items) or {}
+        compare_mode = item_meta.get("compareMode", "")
+        bridge_page = (
+            compare_mode == "bridge"
+            and bool(web_original)
+            and bool(BRIDGE_MARKERS.search(web_original))
+        )
         fidelity = python_fidelity_eligible(lovable_root, item.lovable_path)
         effective_mode = "auto" if fidelity or sync_mode == "auto" else sync_mode
         reg_cfg = fidelity_anti_regression(anti_regression or {}) if fidelity else dict(anti_regression or {})
@@ -540,8 +606,15 @@ def run_empalme(
                 else None
             )
             if not lovable_old_raw:
-                if effective_mode == "auto" and (item.similarity < python_max_sim or fidelity):
+                if effective_mode == "auto" and (item.similarity < python_max_sim or fidelity) and not bridge_page:
                     use_full = True
+                elif bridge_page:
+                    result.cursor_required.append({
+                        **base,
+                        "tier": "cursor",
+                        "reason": "bridge_page_sin_revision_lovable_anterior",
+                    })
+                    continue
                 elif fidelity and is_css:
                     use_full = True
                 else:
@@ -570,7 +643,17 @@ def run_empalme(
                     )
                     if partial_ok:
                         pass
-                    elif effective_mode == "auto" and (item.similarity < python_max_sim or fidelity):
+                    elif bridge_page and lovable_old_raw:
+                        patched = patch_bridge_wall_page(web_original, lovable_old_raw, lovable_new_raw)
+                        if patched and patched.strip() != web_original.strip():
+                            transformed = patched
+                            apply_mode = "bridge_patch"
+                            use_full = False
+                            delta_detail = "bridge_patch"
+                        else:
+                            result.skipped.append({**base, "tier": "skipped", "reason": "bridge_page_ya_aplicado"})
+                            continue
+                    elif effective_mode == "auto" and (item.similarity < python_max_sim or fidelity) and not bridge_page:
                         use_full = True
                     elif fidelity and is_css:
                         transformed = merge_css_fidelity_web(web_original, lovable_old_raw, lovable_new_raw)
@@ -589,8 +672,17 @@ def run_empalme(
                 if not use_full and apply_mode != "css_fidelity_merge":
                     transformed = delta.web_text
                     delta_detail = f"delta_ops={delta.applied_ops}"
-                    if delta.applied_ops == 0 and effective_mode == "auto" and (item.similarity < python_max_sim or fidelity):
+                    if delta.applied_ops == 0 and effective_mode == "auto" and (item.similarity < python_max_sim or fidelity) and not bridge_page:
                         use_full = True
+                    elif delta.applied_ops == 0 and bridge_page and lovable_old_raw:
+                        patched = patch_bridge_wall_page(web_original, lovable_old_raw, lovable_new_raw)
+                        if patched and patched.strip() != web_original.strip():
+                            transformed = patched
+                            apply_mode = "bridge_patch"
+                            delta_detail = "bridge_patch"
+                        else:
+                            result.skipped.append({**base, "tier": "skipped", "reason": "bridge_page_ya_aplicado"})
+                            continue
                     elif fidelity and is_css:
                         transformed = merge_css_fidelity_web(web_original, lovable_old_raw, lovable_new_raw)
                         apply_mode = "css_fidelity_merge"
@@ -600,8 +692,17 @@ def run_empalme(
                             web_original, transformed, lovable_old_raw, lovable_new_raw, reg_cfg
                         )
                         if not ok:
-                            if effective_mode == "auto" and (item.similarity < python_max_sim or fidelity):
+                            if effective_mode == "auto" and (item.similarity < python_max_sim or fidelity) and not bridge_page:
                                 use_full = True
+                            elif bridge_page and lovable_old_raw:
+                                patched = patch_bridge_wall_page(web_original, lovable_old_raw, lovable_new_raw)
+                                if patched and patched.strip() != web_original.strip():
+                                    transformed = patched
+                                    apply_mode = "bridge_patch"
+                                    delta_detail = "bridge_patch"
+                                else:
+                                    result.skipped.append({**base, "tier": "skipped", "reason": "bridge_page_ya_aplicado"})
+                                    continue
                             elif fidelity:
                                 fidelity_override = True
                             else:
@@ -611,6 +712,25 @@ def run_empalme(
                                     "reason": f"anti_regression ({'; '.join(violations[:3])})",
                                 })
                                 continue
+
+        if use_full and bridge_page and web_original:
+            if lovable_old_raw:
+                patched = patch_bridge_wall_page(web_original, lovable_old_raw, lovable_new_raw)
+                if patched and patched.strip() != web_original.strip():
+                    transformed = patched
+                    apply_mode = "bridge_patch"
+                    use_full = False
+                    delta_detail = "bridge_patch"
+                else:
+                    result.skipped.append({**base, "tier": "skipped", "reason": "bridge_page_ya_aplicado"})
+                    continue
+            else:
+                result.cursor_required.append({
+                    **base,
+                    "tier": "cursor",
+                    "reason": "bridge_page_full_sync_bloqueado",
+                })
+                continue
 
         if use_full and web_original and LOVABLE_SUPABASE.search(lovable_new_raw) and BRIDGE_MARKERS.search(web_original):
             if not fidelity:

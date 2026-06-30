@@ -347,9 +347,14 @@ def patch_bridge_wall_page(web: str, lovable_old: str, lovable_new: str) -> str 
             if re.search(rf"<\s*{comp_name}\b", result):
                 continue
             anchor = re.search(
-                r"(<FeedVenuesCarousel\b[\s\S]*?\n\s*/>)",
+                r"(<FeedServicesCarousel\b[\s\S]*?\n\s*/>)",
                 result,
             )
+            if not anchor:
+                anchor = re.search(
+                    r"(<FeedVenuesCarousel\b[\s\S]*?\n\s*/>)",
+                    result,
+                )
             if anchor:
                 insert_pos = anchor.end()
                 indent = "        "
